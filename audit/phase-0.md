@@ -222,3 +222,9 @@ Tests: `php artisan test` — 68 passed (197 assertions), was 4.
 - **Git:** both projects are now Git repositories (`laravel-ecommerce` master at `dace94a`, `next-ecommerce`); still no remote or CI. Audit §2.1 "no Git" no longer holds.
 - **Steadfast integration merged** (13 commits, see [module 13](../modules/13-steadfast-courier.md)); migrations ran on the local database after a backup (`D:\bazarbarionline\backups\`). Tests: 148 passed.
 - **New finding (medium): cache store ignored.** `config/cache.php` reads `env('CACHE_DRIVER', 'file')`, but `.env` and `.env.example` set `CACHE_STORE`, so the app always uses the file cache (including rate-limit counters). Tests are fixed by `CACHE_DRIVER=array` in `phpunit.xml`; the app config is unchanged because the fix changes production caching. Smallest fix: read `env('CACHE_STORE', env('CACHE_DRIVER', 'database'))` and decide the production store with the owner.
+
+### 7.2 Source control remotes (19 Nov 2026)
+
+- Each folder now has its own private GitHub remote: `laravel-ecommerce` → `bazarbari-api`, `next-ecommerce` → `bazarbari-web`, `documentation` → `bazarbarionline`. Finding §2.1 is closed except for CI.
+- **Lesson recorded:** GitHub's "quick setup" snippet run at `D:\bazarbarionline` created a root repository, deleted the projects' `.git` folders and committed a database dump. Never run `git init` at the root; check `git -C <folder> remote -v` in each project folder instead. If a project's `.git` folder goes missing, restore it from the Recycle Bin or re-clone from GitHub before making changes.
+- Pushes fail from inside Claude Code (its shell blocks Git Credential Manager sign-in); push from a normal PowerShell window or GitHub Desktop.

@@ -9,7 +9,7 @@
 | [permissions.md](permissions.md) | Permission catalogue (spec §6.4): 45 `module.action` permissions, platform and vendor role matrices, mapping from today's seeded permissions |
 | [openapi.yaml](openapi.yaml) | OpenAPI 3.1 (spec §10.3): every implemented route (105, incl. the Steadfast admin endpoints and webhook) plus the planned `/api/v1/...` MVP endpoints, with permission, tenant scope, rate limit, audit event and known issues |
 | [security/steadfast.md](security/steadfast.md) | Steadfast courier security plan (Bangla): 13-item checklist, all built and merged; webhook auth answer; package decision |
-| [runbooks/](runbooks/README.md) | Runbooks (spec §15.3): database restore, file restore, full redeploy, credential rotation, failed migration, hosting outage |
+| [runbooks/](runbooks/README.md) | Runbooks (spec §15.3): database restore, file restore, full redeploy, credential rotation, failed migration, hosting outage; [incident log](runbooks/incident-log.md) |
 | [tools/gen_openapi.py](tools/gen_openapi.py) | Script that regenerates `openapi.yaml` from the route list |
 
 ## Regenerating openapi.yaml
@@ -25,7 +25,19 @@ python tools/gen_openapi.py tools/routes.json openapi.yaml
 
 Endpoint descriptions, known issues and the planned v1 list live in the script; update them there, not in the YAML.
 
-## Still to be written
+## Repositories
 
-- `config/permissions.php` and `config/roles.php` in the backend, generated from [permissions.md](permissions.md) — Phase 1 code, not documentation.
-- `runbooks/incident-log.md` — created on the first incident or restore test.
+| Folder | GitHub (private) | Branch | README |
+| --- | --- | --- | --- |
+| `laravel-ecommerce` | `shamimhossenbd/bazarbari-api` | `master` | [backend setup](../laravel-ecommerce/README.md) |
+| `next-ecommerce` | `shamimhossenbd/bazarbari-web` | `master` | [frontend setup](../next-ecommerce/README.md) |
+| `documentation` | `shamimhossenbd/bazarbarionline` | `main` | this file |
+
+`D:\bazarbarionline` itself is not a repository — never run `git init` there (audit §7.2).
+
+## Status
+
+All planned documentation is written. What remains is code, not docs:
+
+- `config/permissions.php` and `config/roles.php` in the backend, generated from [permissions.md](permissions.md) — Phase 1 work.
+- Items marked **Blocked (owner)** in spec §19.1 and the [runbook blockers](runbooks/README.md#before-any-of-these-can-work-blockers) need cPanel/production checks, not writing.

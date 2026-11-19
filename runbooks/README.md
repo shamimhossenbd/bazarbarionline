@@ -17,7 +17,7 @@ These runbooks assume the operations setup in spec section 15. Until each item b
 
 | Prerequisite | Needed by | Status (19 Nov 2026) |
 | --- | --- | --- |
-| Git repository and remote (spec 15.2) | 03, 05 | Partial — both projects are local Git repositories; no remote yet, so a lost PC loses the history |
+| Git repository and remote (spec 15.2) | 03, 05 | Done — private GitHub remotes `bazarbari-api` and `bazarbari-web` (branch `master`); history survives a lost PC once pushed. No CI yet |
 | Daily MySQL dump + encrypted off-site copy | 01, 05 | Missing |
 | Daily off-site copy of `storage/app` | 02 | Missing |
 | Staging subdomain with its own database | 01, 05 | Missing |
@@ -31,7 +31,7 @@ These runbooks assume the operations setup in spec section 15. Until each item b
 - API code lives in `/home/<user>/laravel-ecommerce`; only its `public/` folder is web-exposed (spec 15.2).
 - Times are recorded in Asia/Dhaka in the incident log; the database stores UTC.
 - **Maintenance mode**: `<php> artisan down --retry=60 --secret="<random>"` lets you browse the site at `https://api.…/<random>` while customers see the 503 page. `<php> artisan up` ends it.
-- Every incident gets a short entry in `documentation/runbooks/incident-log.md` (create it on first use): date, runbook, who, start/end time, what was lost, what to change.
+- Every incident gets a short entry in [`incident-log.md`](incident-log.md): date, runbook, who, start/end time, what was lost, what to change.
 - Never restore a single vendor's data by overwriting the shared production database (spec 15.3). Use [01 § Partial restore](01-database-restore.md#partial-restore-one-vendor-or-a-few-rows).
 
 ## Monthly restore test

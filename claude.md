@@ -17,6 +17,7 @@ This is v2 of the BazarBariOnline specification. It replaces v1 (Parts 1–40) w
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v2.5 | 2026-11-19 | Source control: three private GitHub repositories (`bazarbari-api`, `bazarbari-web`, `bazarbarionline` for docs); section 1, 15.2, 19.3 Q10, audit §7.2, runbooks 03 and README updated. Project READMEs written; `runbooks/incident-log.md` created. |
 | v2.4 | 2026-11-19 | Steadfast courier integration merged (`laravel-ecommerce` master `dace94a`, 13 commits, 148 tests): modules 04 and 13 now Partial, module 16 note updated; `openapi.yaml` regenerated (105 routes; first `/api/v1` route is the Steadfast webhook); section 1 source control updated (both projects in Git); audit §7 adds the `CACHE_DRIVER` finding. |
 | v2.3 | 2026-11-19 | Documentation completed: permission catalogue (`permissions.md`), OpenAPI file (`openapi.yaml`, 98 implemented routes + planned v1), six runbooks (`runbooks/`). Audit §7 records fixes since Phase 0 (H1, H2, H4 fixed; H3, H5 partly). |
 | v2.2 | 2026-11-19 | Phase 0 audit done (`audit/phase-0.md`). Section 1 facts verified; flow diagrams in 7 and 17 written out; webhook row in 10.3 fixed; module register (18) and checklist (19.1) filled from evidence; ADR files (`adr/`) and module specs (`modules/`) created. |
@@ -54,9 +55,9 @@ BazarBariOnline is a Laravel 13 API with a Next.js storefront and dashboards, ho
 | Docs path | `D:\bazarbarionline\documentation` |
 | Backend | Laravel 13.24.0 REST API, PHP ^8.3 (local CLI 8.4.12), Sanctum 4, Spatie Permission 8, Pest 4, MySQL (*verify* production MySQL and PHP versions) |
 | Frontend | Next.js 16.3.0 App Router, React 19.2.8, TypeScript 5, Bootstrap ^5.3.8, axios, Zustand, react-hook-form + Zod |
-| Source control | Git, one repository per project (`laravel-ecommerce` on `master`, `next-ecommerce`), local only — no remote or CI yet (spec 15.2). The root and `documentation` are not in Git. |
-| API and admin domain | `https://api.shamimwebsolutions.com` |
-| Storefront domain | `https://shamimwebsolutions.com` |
+| Source control | Git, one private GitHub repository per folder: `laravel-ecommerce` → `shamimhossenbd/bazarbari-api` (`master`), `next-ecommerce` → `shamimhossenbd/bazarbari-web` (`master`), `documentation` → `shamimhossenbd/bazarbarionline` (`main`). No CI yet (spec 15.2). The root `D:\bazarbarionline` is **not** a repository and must never be `git init`-ed; `backups\` holds database dumps and is never committed. |
+| API and admin domain | `https://api.bazarbarionline.com` |
+| Storefront domain | `https://bazarbarionline.com` |
 | Hosting | cPanel shared hosting (*verify* Node.js app support, PHP CLI path, cron, SSH) |
 | Queue | `QUEUE_CONNECTION=database` locally (no scheduler or cron yet); production value *verify*; target in ADR-06 |
 | Market | Bangladesh; currency BDT; languages Bangla and English |
@@ -580,7 +581,7 @@ Staging and production never share a database, `APP_KEY` or gateway credentials 
 
 ### 15.2 Source control and deployment
 
-- Git repository with `main` (production) and `develop` (staging); feature branches merged through pull requests.
+- Git repository with `main` (production) and `develop` (staging); feature branches merged through pull requests. Today the two code repositories use `master` as their only branch; rename it to `main` and add `develop` before the first staging deploy.
 - CI (GitHub Actions): `composer install`, `php artisan test`, `npm ci`, `npm run lint`, `npm run build`, dependency audits. A red build is not deployed.
 - Deploy to cPanel with Git Version Control (`.cpanel.yml`) or a scripted upload; then `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force` (after backup), `config:cache`, `route:cache`, `view:cache`, `queue:restart`.
 - Laravel `public/` is the only web-exposed folder; the rest sits outside `public_html`.
@@ -763,7 +764,7 @@ For each item: what exists (with file paths), what is missing, risk (high/medium
 7. Who will give legal advice on the Digital Commerce Guidelines, VAT and data retention?
 8. Is there real production data today, or can the schema still change freely?
 9. Which stock column does the shop actually rely on today: `products.stock`, `product_variants.stock` or `inventories.quantity`? (audit §2.6)
-10. May both projects be put under Git now (one repository or two), before any Phase 1 change?
+10. ~~May both projects be put under Git now?~~ **Answered (19 Nov 2026):** yes — three separate private GitHub repositories (section 1).
 
 ## 20. Learning path for the developer
 

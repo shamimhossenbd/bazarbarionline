@@ -7,11 +7,11 @@ Rebuild the API (and the Next.js app if it runs on the same host) from Git on a 
 | Who | Owner |
 | Needs | Git remote, `.env` values from the password manager, database backup, file backup |
 | Target | 2 hours |
-| Status | **Blocked** until both projects are in Git (audit §2.1) |
+| Status | **Ready** for code (remotes: `shamimhossenbd/bazarbari-api`, `shamimhossenbd/bazarbari-web`, both private, branch `master`). Still needs SSH/cPanel Terminal and backups (see [README blockers](README.md#before-any-of-these-can-work-blockers)) |
 
 ## 1. Prepare
 
-1. Write in the incident log why a full redeploy is needed and which commit or tag to deploy (normally the last tag on `main`).
+1. Write in the incident log why a full redeploy is needed and which commit or tag to deploy (normally the last tag on `main`; until the branch is renamed, `master`).
 2. Take a fresh database dump (see [01 § 2](01-database-restore.md#2-protect-what-is-there-now)) if the database is still reachable.
 3. Copy `storage/app` aside if the old folder still exists: `cp -a ~/laravel-ecommerce/storage/app ~/storage-app-$(date +%Y%m%d)`.
 
@@ -19,7 +19,8 @@ Rebuild the API (and the Next.js app if it runs on the same host) from Git on a 
 
 ```bash
 cd /home/<user>
-git clone --branch main <git-remote-url> laravel-ecommerce-new
+# private repo: use a GitHub deploy key or fine-grained token with read access only
+git clone --branch master https://github.com/shamimhossenbd/bazarbari-api.git laravel-ecommerce-new
 cd laravel-ecommerce-new
 git checkout <tag>
 composer install --no-dev --optimize-autoloader
@@ -52,7 +53,7 @@ composer install --no-dev --optimize-autoloader
 
 Only if the storefront runs on this host (ADR-07; otherwise redeploy on Vercel/VPS from the same commit).
 
-1. `git clone` `next-ecommerce` to a new folder and check out the same release tag.
+1. `git clone https://github.com/shamimhossenbd/bazarbari-web.git` to a new folder and check out the same release tag.
 2. Create `.env.production` with `NEXT_PUBLIC_API_URL` and the other public values.
 3. `npm ci && npm run build` (on the server if Node is available, otherwise build locally and upload `.next/standalone`, `.next/static` and `public`).
 4. cPanel → Setup Node.js App: application root = the new folder, startup file = `server.js` (standalone build), restart.

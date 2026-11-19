@@ -1,0 +1,5500 @@
+# BazarBariOnline OpenAPI — generated; regenerate after route changes (see documentation/README.md)
+openapi: 3.1.0
+info:
+  title: BazarBariOnline API
+  version: 0.2.0-steadfast
+  description: 'Generated from `php artisan route:list --json` on 2026-11-19 plus the endpoint inventory in spec section 10.3.
+
+
+    Two sets of paths live in this file:
+
+
+    * `/api/...` — **implemented today** (`x-status: implemented`): 105 operations from 105 routes in the single-shop code.
+
+    * `/api/v1/...` — **planned MVP API** (`x-status: planned`), the target from spec 10.3. Each one moves to implemented
+    as it is built (Definition of Done, spec 16.4). The first one already built is the Steadfast webhook `POST /api/v1/webhooks/courier/steadfast`
+    (`x-status: implemented`).
+
+
+    Extension fields on every operation: `x-permission` (what the code checks now), `x-target-permission` (from `documentation/permissions.md`),
+    `x-tenant-scope`, `x-rate-limit`, `x-audit-event`, `x-known-issues`.
+
+
+    **Authentication:** Sanctum SPA cookies (ADR-04). Call `GET /sanctum/csrf-cookie` first, then send `X-XSRF-TOKEN` and
+    cookies from an origin listed in `SANCTUM_STATEFUL_DOMAINS` (`localhost:3000` locally). In the browser, Next.js rewrites
+    `/api/*` and `/sanctum/*` to Laravel, so requests are same-origin.
+
+
+    **Responses today** do not yet follow the `{data, meta}` envelope of spec 10.2: most return `{success, message, ...}`,
+    Laravel paginator JSON or a bare model. The v1 API adopts the envelope and stable `code` values.'
+servers:
+- url: http://localhost:8000
+  description: Local Laravel (`php artisan serve`)
+- url: https://api.shamimwebsolutions.com
+  description: Production API (domain may change, spec section 1)
+tags:
+- name: Admin access
+- name: Admin auth
+- name: Admin catalogue
+- name: Admin courier
+- name: Admin inventory
+- name: Admin notifications
+- name: Admin orders
+- name: Admin settings
+- name: Customer account
+- name: Customer auth
+- name: Customer cart
+- name: Customer orders
+- name: Storefront
+- name: Webhooks
+- name: v1 — Auth
+  description: Planned (spec 10.3)
+- name: v1 — Public catalogue
+  description: Planned (spec 10.3)
+- name: v1 — Account
+  description: Planned (spec 10.3)
+- name: v1 — Vendor
+  description: Planned (spec 10.3)
+- name: v1 — Platform
+  description: Planned (spec 10.3)
+paths:
+  /api/account/login:
+    post:
+      tags:
+      - Customer auth
+      summary: Customer login (Sanctum session cookie)
+      operationId: post_account_login
+      description: 'Controller: `AuthController@login`. Middleware: `api`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - xsrf: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 5/min — missing)'
+      x-audit-event: auth.login_succeeded / auth.login_failed (not yet logged)
+      x-known-issues:
+      - Not throttled.
+      - Returns 'User not found.' vs 'Password is incorrect.' (account enumeration, spec 12.1).
+  /api/account/logout:
+    post:
+      tags:
+      - Customer auth
+      summary: Log out the customer session
+      operationId: post_account_logout
+      description: 'Controller: `AuthController@logout`. Middleware: `api, Authenticate:sanctum`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/account/register:
+    post:
+      tags:
+      - Customer auth
+      summary: Register a customer account
+      operationId: post_account_register
+      description: 'Controller: `AuthController@register`. Middleware: `api`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - xsrf: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+      x-known-issues:
+      - Returns an unused personal access token although the SPA uses cookies.
+      - No Password::uncompromised() check.
+  /api/account/user:
+    get:
+      tags:
+      - Customer auth
+      summary: Current customer
+      operationId: get_account_user
+      description: 'Controller: `AuthController@user`. Middleware: `api, Authenticate:sanctum`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/attribute-values/{attributeValue}:
+    put:
+      tags:
+      - Admin catalogue
+      summary: Update attribute values
+      operationId: put_admin_attribute_values_attributeValue
+      description: 'Controller: `AttributeValueController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: attributeValue
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeValueWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: attribute_value.updated (not yet logged)
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete attribute values
+      operationId: delete_admin_attribute_values_attributeValue
+      description: 'Controller: `AttributeValueController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: attributeValue
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: attribute_value.deleted (not yet logged)
+  /api/admin/attributes:
+    get:
+      tags:
+      - Admin catalogue
+      summary: List attributes
+      operationId: get_admin_attributes
+      description: 'Controller: `AttributeController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin catalogue
+      summary: Create attributes
+      operationId: post_admin_attributes
+      description: 'Controller: `AttributeController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: attribute.created (not yet logged)
+  /api/admin/attributes/{attribute}:
+    get:
+      tags:
+      - Admin catalogue
+      summary: Show attributes
+      operationId: get_admin_attributes_attribute
+      description: 'Controller: `AttributeController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: attribute
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin catalogue
+      summary: Update attributes
+      operationId: put_admin_attributes_attribute
+      description: 'Controller: `AttributeController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: attribute
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: attribute.updated (not yet logged)
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete attributes
+      operationId: delete_admin_attributes_attribute
+      description: 'Controller: `AttributeController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: attribute
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: attribute.deleted (not yet logged)
+  /api/admin/attributes/{attribute}/values:
+    get:
+      tags:
+      - Admin catalogue
+      summary: List values
+      operationId: get_admin_attributes_attribute_values
+      description: 'Controller: `AttributeValueController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: attribute
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin catalogue
+      summary: Create values
+      operationId: post_admin_attributes_attribute_values
+      description: 'Controller: `AttributeValueController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: attribute
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeValueWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: attribute_value.created (not yet logged)
+  /api/admin/attributes/{attribute}/values/{value}:
+    put:
+      tags:
+      - Admin catalogue
+      summary: Update values
+      operationId: put_admin_attributes_attribute_values_value
+      description: 'Controller: `AttributeValueController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: attribute
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: value
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeValueWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: attribute_value.updated (not yet logged)
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete values
+      operationId: delete_admin_attributes_attribute_values_value
+      description: 'Controller: `AttributeValueController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: attribute
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: value
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.attribute.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: attribute_value.deleted (not yet logged)
+  /api/admin/audit-logs:
+    get:
+      tags:
+      - Admin access
+      summary: Read the append-only audit log
+      operationId: get_admin_audit_logs
+      description: 'Controller: `AuditLogController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        Query: event (exact or prefix like shipment.*), target_type, target_id, per_page (max 100). There are no update or
+        delete routes (spec 12.2).'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: audit.view
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/brands:
+    get:
+      tags:
+      - Admin catalogue
+      summary: List brands
+      operationId: get_admin_brands
+      description: 'Controller: `BrandController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.brand.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin catalogue
+      summary: Create brands
+      operationId: post_admin_brands
+      description: 'Controller: `BrandController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BrandWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.brand.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: brand.created (not yet logged)
+  /api/admin/brands/{brand}:
+    get:
+      tags:
+      - Admin catalogue
+      summary: Show brands
+      operationId: get_admin_brands_brand
+      description: 'Controller: `BrandController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: brand
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.brand.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin catalogue
+      summary: Update brands
+      operationId: put_admin_brands_brand
+      description: 'Controller: `BrandController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: brand
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BrandWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.brand.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: brand.updated (not yet logged)
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete brands
+      operationId: delete_admin_brands_brand
+      description: 'Controller: `BrandController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: brand
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.brand.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: brand.deleted (not yet logged)
+  /api/admin/categories:
+    get:
+      tags:
+      - Admin catalogue
+      summary: List categories
+      operationId: get_admin_categories
+      description: 'Controller: `CategoryController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.category.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin catalogue
+      summary: Create categories
+      operationId: post_admin_categories
+      description: 'Controller: `CategoryController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.category.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: category.created (not yet logged)
+  /api/admin/categories/{category}:
+    get:
+      tags:
+      - Admin catalogue
+      summary: Show categories
+      operationId: get_admin_categories_category
+      description: 'Controller: `CategoryController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: category
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.category.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin catalogue
+      summary: Update categories
+      operationId: put_admin_categories_category
+      description: 'Controller: `CategoryController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: category
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.category.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: category.updated (not yet logged)
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete categories
+      operationId: delete_admin_categories_category
+      description: 'Controller: `CategoryController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: category
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: catalog.category.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: category.deleted (not yet logged)
+  /api/admin/courier/steadfast:
+    get:
+      tags:
+      - Admin courier
+      summary: Steadfast connection status with masked keys
+      operationId: get_admin_courier_steadfast
+      description: 'Controller: `CourierSettingsController@steadfast`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        Keys and webhook token are shown masked only (last 4 chars). api_key_fingerprint is a 16-char SHA-256 prefix to copy
+        into staging''s STEADFAST_PRODUCTION_KEY_FINGERPRINT.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourierSettings'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: settings.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/courier/steadfast/reconciliation:
+    get:
+      tags:
+      - Admin courier
+      summary: 'COD reconciliation: expected vs collected cash per delivered shipment'
+      operationId: get_admin_courier_steadfast_reconciliation
+      description: 'Controller: `CodReconciliationController@steadfast`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        Query: from, to (Y-m-d, Asia/Dhaka days), only_problems (bool). Amounts are decimal strings computed in paisa.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodReconciliationReport'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: courier.reconcile
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+      x-known-issues:
+      - Steadfast /payments remittance batches are not imported yet; matching uses the cod_amount reported in the delivered
+        webhook.
+  /api/admin/inventory:
+    get:
+      tags:
+      - Admin inventory
+      summary: List inventory
+      operationId: get_admin_inventory
+      description: 'Controller: `InventoryController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: inventory.adjust
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/inventory/{inventory}:
+    put:
+      tags:
+      - Admin inventory
+      summary: Update inventory
+      operationId: put_admin_inventory_inventory
+      description: 'Controller: `InventoryController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: inventory
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: inventory.adjust
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: inventory.updated (not yet logged)
+  /api/admin/login:
+    post:
+      tags:
+      - Admin auth
+      summary: Admin login (Sanctum session cookie, `admin` guard)
+      operationId: post_admin_login
+      description: 'Controller: `AdminAuthController@login`. Middleware: `api`.
+
+
+        Must be called from the SPA origin (SANCTUM_STATEFUL_DOMAINS) after GET /sanctum/csrf-cookie. A direct call without
+        an Origin/Referer header fails with 500 ''Session store not set on request.'' Local seed account: admin@example.com
+        / password.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSession'
+        '403':
+          description: Account inactive or lacks the admin role
+        '422':
+          $ref: '#/components/responses/Validation'
+        '429':
+          description: Too many attempts
+      security:
+      - xsrf: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 5 failed attempts per email+IP, 60 s lockout
+      x-audit-event: auth.login_succeeded / auth.login_failed (not yet logged)
+  /api/admin/logout:
+    post:
+      tags:
+      - Admin auth
+      summary: Admin logout; invalidates the session
+      operationId: post_admin_logout
+      description: 'Controller: `AdminAuthController@logout`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: null
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/notifications:
+    get:
+      tags:
+      - Admin notifications
+      summary: Signed-in admin's notifications (COD mismatch alerts)
+      operationId: get_admin_notifications
+      description: 'Controller: `AdminNotificationController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        Query: unread=1. Paginated, unread first.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: — (own notifications)
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/notifications/{notification}/read:
+    post:
+      tags:
+      - Admin notifications
+      summary: Mark one of your notifications read
+      operationId: post_admin_notifications_notification_read
+      description: 'Controller: `AdminNotificationController@markRead`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: notification
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '404':
+          description: Not one of your notifications
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: — (own notifications)
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/orders:
+    get:
+      tags:
+      - Admin orders
+      summary: All orders (admin list)
+      operationId: get_admin_orders
+      description: 'Controller: `OrderController@adminIndex`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        Lists every customer''s orders (audit H4 fixed; AdminOrderListTest).'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: order.view_all
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/orders/{order}:
+    get:
+      tags:
+      - Admin orders
+      summary: Any order detail
+      operationId: get_admin_orders_order
+      description: 'Controller: `OrderController@adminShow`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: order
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: order.view_all
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin orders
+      summary: Change order status; cancelling restores stock
+      operationId: put_admin_orders_order
+      description: 'Controller: `OrderController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: order
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderStatusUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: order.cancel_any (cancel) / order.view_all
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: order.cancelled_by_staff / order.status_changed (not yet logged)
+      x-known-issues:
+      - Any status may be set; the state machine in spec 7.2 is not enforced.
+  /api/admin/orders/{order}/shipment/steadfast:
+    post:
+      tags:
+      - Admin courier
+      summary: Book a Steadfast parcel for an order (server-side call to /create_order)
+      operationId: post_admin_orders_order_shipment_steadfast
+      description: 'Controller: `ShipmentBookingController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        COD amount = order total unless the order has a paid payment. Moves a pending/confirmed order to processing. Courier
+        keys never appear in the response.'
+      parameters:
+      - name: order
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SteadfastBookRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SteadfastBookResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '409':
+          description: ORDER_NOT_BOOKABLE or SHIPMENT_ALREADY_BOOKED
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          description: SHIPPING_ADDRESS_MISSING
+        '502':
+          description: COURIER_BOOKING_FAILED (Steadfast error, not configured, or production key outside production)
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: shipment.book
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: shipment.booked / shipment.booking_failed
+      x-known-issues:
+      - Books per order; Phase 2 moves this to one shipment per vendor order (module 13).
+  /api/admin/permissions:
+    get:
+      tags:
+      - Admin access
+      summary: List permissions
+      operationId: get_admin_permissions
+      description: 'Controller: `PermissionController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin access
+      summary: Create permissions
+      operationId: post_admin_permissions
+      description: 'Controller: `PermissionController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissionWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: permission.created (not yet logged)
+  /api/admin/permissions/{permission}:
+    get:
+      tags:
+      - Admin access
+      summary: Show permissions
+      operationId: get_admin_permissions_permission
+      description: 'Controller: `PermissionController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: permission
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin access
+      summary: Update permissions
+      operationId: put_admin_permissions_permission
+      description: 'Controller: `PermissionController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: permission
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissionWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: permission.updated (not yet logged)
+    delete:
+      tags:
+      - Admin access
+      summary: Delete permissions
+      operationId: delete_admin_permissions_permission
+      description: 'Controller: `PermissionController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: permission
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: permission.deleted (not yet logged)
+  /api/admin/products:
+    get:
+      tags:
+      - Admin catalogue
+      summary: List products
+      operationId: get_admin_products
+      description: 'Controller: `ProductController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.view / product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin catalogue
+      summary: Create products
+      operationId: post_admin_products
+      description: 'Controller: `ProductController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.view / product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.created (not yet logged)
+  /api/admin/products/description-image:
+    post:
+      tags:
+      - Admin catalogue
+      summary: Upload an image for the rich-text description editor
+      operationId: post_admin_products_description_image
+      description: 'Controller: `ProductController@uploadDescriptionImage`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DescriptionImageUpload'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/products/{product}:
+    get:
+      tags:
+      - Admin catalogue
+      summary: Show products
+      operationId: get_admin_products_product
+      description: 'Controller: `ProductController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.view / product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin catalogue
+      summary: Update products
+      operationId: put_admin_products_product
+      description: 'Controller: `ProductController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.view / product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.updated (not yet logged)
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete products
+      operationId: delete_admin_products_product
+      description: 'Controller: `ProductController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.view / product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.deleted (not yet logged)
+  /api/admin/products/{product}/features:
+    get:
+      tags:
+      - Admin catalogue
+      summary: List features
+      operationId: get_admin_products_product_features
+      description: 'Controller: `ProductFeatureController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin catalogue
+      summary: Create features
+      operationId: post_admin_products_product_features
+      description: 'Controller: `ProductFeatureController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.created (not yet logged)
+  /api/admin/products/{product}/features/{feature}:
+    get:
+      tags:
+      - Admin catalogue
+      summary: Show features
+      operationId: get_admin_products_product_features_feature
+      description: 'Controller: `ProductFeatureController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: feature
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin catalogue
+      summary: Update features
+      operationId: put_admin_products_product_features_feature
+      description: 'Controller: `ProductFeatureController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: feature
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.updated (not yet logged)
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete features
+      operationId: delete_admin_products_product_features_feature
+      description: 'Controller: `ProductFeatureController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: feature
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.deleted (not yet logged)
+  /api/admin/products/{product}/specifications:
+    get:
+      tags:
+      - Admin catalogue
+      summary: List specifications
+      operationId: get_admin_products_product_specifications
+      description: 'Controller: `ProductSpecificationController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin catalogue
+      summary: Create specifications
+      operationId: post_admin_products_product_specifications
+      description: 'Controller: `ProductSpecificationController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpecificationWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.created (not yet logged)
+  /api/admin/products/{product}/specifications/{specification}:
+    get:
+      tags:
+      - Admin catalogue
+      summary: Show specifications
+      operationId: get_admin_products_product_specifications_specification
+      description: 'Controller: `ProductSpecificationController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: specification
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin catalogue
+      summary: Update specifications
+      operationId: put_admin_products_product_specifications_specification
+      description: 'Controller: `ProductSpecificationController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: specification
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpecificationWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.updated (not yet logged)
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete specifications
+      operationId: delete_admin_products_product_specifications_specification
+      description: 'Controller: `ProductSpecificationController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: specification
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.deleted (not yet logged)
+  /api/admin/products/{product}/variants:
+    get:
+      tags:
+      - Admin catalogue
+      summary: List variants
+      operationId: get_admin_products_product_variants
+      description: 'Controller: `ProductVariantController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin catalogue
+      summary: Create variants
+      operationId: post_admin_products_product_variants
+      description: 'Controller: `ProductVariantController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VariantWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.created (not yet logged)
+  /api/admin/products/{product}/variants/{variant}:
+    get:
+      tags:
+      - Admin catalogue
+      summary: Show variants
+      operationId: get_admin_products_product_variants_variant
+      description: 'Controller: `ProductVariantController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: variant
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin catalogue
+      summary: Update variants
+      operationId: put_admin_products_product_variants_variant
+      description: 'Controller: `ProductVariantController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: variant
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VariantWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.updated (not yet logged)
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete variants
+      operationId: delete_admin_products_product_variants_variant
+      description: 'Controller: `ProductVariantController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: variant
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: product.update
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.deleted (not yet logged)
+  /api/admin/reviews:
+    get:
+      tags:
+      - Admin catalogue
+      summary: Reviews for moderation
+      operationId: get_admin_reviews
+      description: 'Controller: `ReviewController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: review.moderate
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+      x-known-issues:
+      - 'Calls ReviewController::index(Product) with no product: always returns an empty list, and only approved reviews (audit
+        H3, still open).'
+  /api/admin/reviews/{review}:
+    delete:
+      tags:
+      - Admin catalogue
+      summary: Delete a review
+      operationId: delete_admin_reviews_review
+      description: 'Controller: `ReviewController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: review
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: review.moderate
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: review.deleted (not yet logged)
+  /api/admin/roles:
+    get:
+      tags:
+      - Admin access
+      summary: List roles
+      operationId: get_admin_roles
+      description: 'Controller: `RoleController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin access
+      summary: Create roles
+      operationId: post_admin_roles
+      description: 'Controller: `RoleController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: role.created (not yet logged)
+  /api/admin/roles/{role}:
+    get:
+      tags:
+      - Admin access
+      summary: Show roles
+      operationId: get_admin_roles_role
+      description: 'Controller: `RoleController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: role
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin access
+      summary: Update roles
+      operationId: put_admin_roles_role
+      description: 'Controller: `RoleController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.
+
+
+        `PATCH` is accepted as an alias of `PUT`.'
+      parameters:
+      - name: role
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: role.updated (not yet logged)
+    delete:
+      tags:
+      - Admin access
+      summary: Delete roles
+      operationId: delete_admin_roles_role
+      description: 'Controller: `RoleController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: role
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: role.deleted (not yet logged)
+  /api/admin/settings/logo:
+    post:
+      tags:
+      - Admin settings
+      summary: Upload site logo
+      operationId: post_admin_settings_logo
+      description: 'Controller: `SettingController@updateLogo`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoUpload'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: settings.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    delete:
+      tags:
+      - Admin settings
+      summary: Remove site logo
+      operationId: delete_admin_settings_logo
+      description: 'Controller: `SettingController@destroyLogo`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: settings.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/settings/seo:
+    put:
+      tags:
+      - Admin settings
+      summary: Update default SEO meta
+      operationId: put_admin_settings_seo
+      description: 'Controller: `SettingController@updateSeo`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeoUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: settings.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/user:
+    get:
+      tags:
+      - Admin auth
+      summary: Current admin with roles and permissions
+      operationId: get_admin_user
+      description: 'Controller: `AdminAuthController@user`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSession'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: null
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/users:
+    get:
+      tags:
+      - Admin access
+      summary: List users
+      operationId: get_admin_users
+      description: 'Controller: `UserController@index`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: team.manage / customer.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Admin access
+      summary: Create users
+      operationId: post_admin_users
+      description: 'Controller: `UserController@store`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserWrite'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: team.manage / customer.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: user.created (not yet logged)
+  /api/admin/users/{user}:
+    get:
+      tags:
+      - Admin access
+      summary: Show users
+      operationId: get_admin_users_user
+      description: 'Controller: `UserController@show`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: user
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: team.manage / customer.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    put:
+      tags:
+      - Admin access
+      summary: Update users
+      operationId: put_admin_users_user
+      description: 'Controller: `UserController@update`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: user
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserWrite'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: team.manage / customer.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: user.updated (not yet logged)
+    delete:
+      tags:
+      - Admin access
+      summary: Delete users
+      operationId: delete_admin_users_user
+      description: 'Controller: `UserController@destroy`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: user
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: team.manage / customer.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: user.deleted (not yet logged)
+  /api/admin/users/{user}/roles:
+    put:
+      tags:
+      - Admin access
+      summary: Replace a user's roles
+      operationId: put_admin_users_user_roles
+      description: 'Controller: `UserController@assignRoles`. Middleware: `api, Authenticate:sanctum, AdminMiddleware`.'
+      parameters:
+      - name: user
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRoles'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: admin role (AdminMiddleware); no permission check
+      x-target-permission: role.manage
+      x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: member.role_changed (not yet logged)
+      x-known-issues:
+      - No check that the actor holds the granted permissions; users can change their own roles; last Super Admin not protected
+        (spec 6.4, 12.1).
+  /api/attributes:
+    get:
+      tags:
+      - Storefront
+      summary: Attributes and values
+      operationId: get_attributes
+      description: 'Controller: `AttributeController@index`. Middleware: `api`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+      security: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/brands:
+    get:
+      tags:
+      - Storefront
+      summary: Active brands
+      operationId: get_brands
+      description: 'Controller: `BrandController@index`. Middleware: `api`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+      security: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/cart:
+    get:
+      tags:
+      - Customer cart
+      summary: Current user's cart with items and totals
+      operationId: get_cart
+      description: 'Controller: `CartController@index`. Middleware: `api, Authenticate:sanctum`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    delete:
+      tags:
+      - Customer cart
+      summary: Empty the cart
+      operationId: delete_cart
+      description: 'Controller: `CartController@clear`. Middleware: `api, Authenticate:sanctum`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/cart/items:
+    post:
+      tags:
+      - Customer cart
+      summary: Add a product or variant to the cart
+      operationId: post_cart_items
+      description: 'Controller: `CartItemController@store`. Middleware: `api, Authenticate:sanctum`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemCreate'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: INSUFFICIENT_STOCK or validation error
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/cart/items/{cartItem}:
+    put:
+      tags:
+      - Customer cart
+      summary: Change quantity of a cart item
+      operationId: put_cart_items_cartItem
+      description: 'Controller: `CartItemController@update`. Middleware: `api, Authenticate:sanctum`.
+
+
+        Another user''s item returns 404 (audit H1 fixed; CartItemOwnershipTest).'
+      parameters:
+      - name: cartItem
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: Item not in the current user's cart
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    delete:
+      tags:
+      - Customer cart
+      summary: Remove a cart item
+      operationId: delete_cart_items_cartItem
+      description: 'Controller: `CartItemController@destroy`. Middleware: `api, Authenticate:sanctum`.
+
+
+        Another user''s item returns 404 (audit H1 fixed).'
+      parameters:
+      - name: cartItem
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: Item not in the current user's cart
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/categories:
+    get:
+      tags:
+      - Storefront
+      summary: Category tree for the storefront
+      operationId: get_categories
+      description: 'Controller: `CategoryController@frontendIndex`. Middleware: `api`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+      security: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/categories/{category}:
+    get:
+      tags:
+      - Storefront
+      summary: Category by slug with products
+      operationId: get_categories_category
+      description: 'Controller: `CategoryController@frontendShow`. Middleware: `api`.'
+      parameters:
+      - name: category
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+      security: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/coupon/validate:
+    post:
+      tags:
+      - Customer cart
+      summary: Check a coupon code against a subtotal
+      operationId: post_coupon_validate
+      description: 'Controller: `CouponController@validateCoupon`. Middleware: `api, Authenticate:sanctum`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CouponValidate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: — (any signed-in user)
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/orders:
+    get:
+      tags:
+      - Customer orders
+      summary: Own orders
+      operationId: get_orders
+      description: 'Controller: `OrderController@index`. Middleware: `api, Authenticate:sanctum`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Customer orders
+      summary: 'Checkout: create one order from the cart (COD)'
+      operationId: post_orders
+      description: 'Controller: `OrderController@store`. Middleware: `api, Authenticate:sanctum`.
+
+
+        Locks product/variant rows, checks and decrements stock in one transaction (audit H5 partly fixed; CheckoutStockTest).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: Cart empty, INSUFFICIENT_STOCK or validation error
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 10/min)'
+      x-audit-event: order.placed (not yet logged)
+      x-known-issues:
+      - Uses the price stored on the cart item, not the current product price.
+      - No payment record created; no Idempotency-Key.
+      - No order split by vendor (Phase 2).
+  /api/orders/{order}:
+    get:
+      tags:
+      - Customer orders
+      summary: Own order detail
+      operationId: get_orders_order
+      description: 'Controller: `OrderController@show`. Middleware: `api, Authenticate:sanctum`.'
+      parameters:
+      - name: order
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+      x-known-issues:
+      - Another user's order returns 403; spec 6.2 wants 404.
+  /api/orders/{order}/cancel:
+    post:
+      tags:
+      - Customer orders
+      summary: Cancel own order before shipping; restores stock
+      operationId: post_orders_order_cancel
+      description: 'Controller: `OrderController@cancel`. Middleware: `api, Authenticate:sanctum`.'
+      parameters:
+      - name: order
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          description: Order cannot be cancelled
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: order.status_changed (not yet logged)
+      x-known-issues:
+      - Another user's order returns 403; spec 6.2 wants 404.
+  /api/products:
+    get:
+      tags:
+      - Storefront
+      summary: List active products (filters, pagination)
+      operationId: get_products
+      description: 'Controller: `ProductController@index`. Middleware: `api`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+      security: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/products/{product}:
+    get:
+      tags:
+      - Storefront
+      summary: Product detail by slug
+      operationId: get_products_product
+      description: 'Controller: `ProductController@show`. Middleware: `api`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+      security: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/products/{product}/reviews:
+    get:
+      tags:
+      - Storefront
+      summary: Approved reviews of a product
+      operationId: get_products_product_reviews
+      description: 'Controller: `ReviewController@index`. Middleware: `api`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+      security: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+    post:
+      tags:
+      - Customer account
+      summary: Submit a review (held for approval)
+      operationId: post_products_product_reviews
+      description: 'Controller: `ReviewController@store`. Middleware: `api, Authenticate:sanctum`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCreate'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/products/{product}/variants:
+    get:
+      tags:
+      - Storefront
+      summary: Variants of a product
+      operationId: get_products_product_variants
+      description: 'Controller: `ProductVariantController@index`. Middleware: `api`.'
+      parameters:
+      - name: product
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+      security: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/settings:
+    get:
+      tags:
+      - Storefront
+      summary: Public site settings (logo, SEO defaults)
+      operationId: get_settings
+      description: 'Controller: `SettingController@show`. Middleware: `api`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+      security: []
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/wishlist:
+    get:
+      tags:
+      - Customer account
+      summary: Wishlist items
+      operationId: get_wishlist
+      description: 'Controller: `WishlistController@index`. Middleware: `api, Authenticate:sanctum`.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/wishlist/items:
+    post:
+      tags:
+      - Customer account
+      summary: Add to wishlist
+      operationId: post_wishlist_items
+      description: 'Controller: `WishlistItemController@store`. Middleware: `api, Authenticate:sanctum`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WishlistItemCreate'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/Validation'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/wishlist/items/{productId}:
+    delete:
+      tags:
+      - Customer account
+      summary: Remove from wishlist
+      operationId: delete_wishlist_items_productId
+      description: 'Controller: `WishlistItemController@destroy`. Middleware: `api, Authenticate:sanctum`.'
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: signed-in user
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /sanctum/csrf-cookie:
+    get:
+      tags:
+      - Admin auth
+      summary: Get the XSRF-TOKEN cookie before any state-changing request
+      operationId: sanctum.csrfCookie
+      security: []
+      description: Sets `XSRF-TOKEN` and the session cookie. The SPA sends the token back as `X-XSRF-TOKEN`.
+      responses:
+        '204':
+          description: Cookies set
+      x-status: implemented
+      x-permission: public
+      x-target-permission: — (public)
+      x-tenant-scope: none
+      x-rate-limit: none
+      x-audit-event: —
+  /api/v1/account/cart/items:
+    get:
+      tags:
+      - v1 — Account
+      summary: Cart items
+      operationId: v1.get_account_cart_items
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: owner of record
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+    post:
+      tags:
+      - v1 — Account
+      summary: Add cart item
+      operationId: v1.post_account_cart_items
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: owner of record
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/account/cart/items/{id}:
+    patch:
+      tags:
+      - v1 — Account
+      summary: Change quantity
+      operationId: v1.patch_account_cart_items_id
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: owner of record
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      tags:
+      - v1 — Account
+      summary: Remove cart item
+      operationId: v1.delete_account_cart_items_id
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: owner of record
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/account/checkout:
+    post:
+      tags:
+      - v1 — Account
+      summary: Checkout with order split; requires Idempotency-Key
+      operationId: v1.post_account_checkout
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: owner of record
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 10/min
+      x-audit-event: order.placed
+      x-tests: module page 'Required tests'
+  /api/v1/account/orders:
+    get:
+      tags:
+      - v1 — Account
+      summary: Own parent orders
+      operationId: v1.get_account_orders
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: owner of record
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/account/orders/{ulid}/cancel:
+    post:
+      tags:
+      - v1 — Account
+      summary: Cancel before handover
+      operationId: v1.post_account_orders_ulid_cancel
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: owner of record
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 120/min
+      x-audit-event: order.status_changed
+      x-tests: module page 'Required tests'
+      parameters:
+      - name: ulid
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/account/preferences:
+    patch:
+      tags:
+      - v1 — Account
+      summary: Theme and language preference
+      operationId: v1.patch_account_preferences
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: owner of record
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/account/returns:
+    post:
+      tags:
+      - v1 — Account
+      summary: Request a return per item
+      operationId: v1.post_account_returns
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: owner of record
+      x-target-permission: owner of record
+      x-tenant-scope: current user's own records
+      x-rate-limit: 120/min
+      x-audit-event: return.requested
+      x-tests: module page 'Required tests'
+  /api/v1/auth/login:
+    post:
+      tags:
+      - v1 — Auth
+      summary: Login by email or BD mobile + password
+      operationId: v1.post_auth_login
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 5/min per account+IP
+      x-audit-event: auth.login_succeeded / auth.login_failed
+      x-tests: module page 'Required tests'
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - v1 — Auth
+      summary: Log out
+      operationId: v1.post_auth_logout
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 120/min
+      x-audit-event: auth.logout
+      x-tests: module page 'Required tests'
+  /api/v1/auth/me:
+    get:
+      tags:
+      - v1 — Auth
+      summary: Current user with roles, memberships and permissions
+      operationId: v1.get_auth_me
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/auth/otp/send:
+    post:
+      tags:
+      - v1 — Auth
+      summary: Send a phone OTP
+      operationId: v1.post_auth_otp_send
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 3 per 10 min per phone
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/auth/otp/verify:
+    post:
+      tags:
+      - v1 — Auth
+      summary: Verify a phone OTP and sign in
+      operationId: v1.post_auth_otp_verify
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 5/min per phone
+      x-audit-event: auth.login_succeeded
+      x-tests: module page 'Required tests'
+  /api/v1/auth/register:
+    post:
+      tags:
+      - v1 — Auth
+      summary: Register a customer
+      operationId: v1.post_auth_register
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 5/min per IP
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/platform/audit-logs:
+    get:
+      tags:
+      - v1 — Platform
+      summary: Audit events
+      operationId: v1.get_platform_audit_logs
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: audit.view
+      x-target-permission: audit.view
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/platform/brands:
+    get:
+      tags:
+      - v1 — Platform
+      summary: Brands
+      operationId: v1.get_platform_brands
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: catalog.brand.manage
+      x-target-permission: catalog.brand.manage
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/platform/categories:
+    get:
+      tags:
+      - v1 — Platform
+      summary: Categories
+      operationId: v1.get_platform_categories
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: catalog.category.manage
+      x-target-permission: catalog.category.manage
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/platform/commission-rules:
+    get:
+      tags:
+      - v1 — Platform
+      summary: Commission rules
+      operationId: v1.get_platform_commission_rules
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: finance.view
+      x-target-permission: finance.view
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+    post:
+      tags:
+      - v1 — Platform
+      summary: Create commission rule (re-confirm)
+      operationId: v1.post_platform_commission_rules
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: finance.commission.manage
+      x-target-permission: finance.commission.manage
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: commission_rule.changed
+      x-tests: module page 'Required tests'
+  /api/v1/platform/members:
+    get:
+      tags:
+      - v1 — Platform
+      summary: Platform staff
+      operationId: v1.get_platform_members
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: team.manage
+      x-target-permission: team.manage
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/platform/payout-requests/{id}/approve:
+    post:
+      tags:
+      - v1 — Platform
+      summary: Approve payout (re-confirm, not own)
+      operationId: v1.post_platform_payout_requests_id_approve
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: payout.approve
+      x-target-permission: payout.approve
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: payout.approved
+      x-tests: module page 'Required tests'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/platform/payouts:
+    post:
+      tags:
+      - v1 — Platform
+      summary: Record transfer reference; requires Idempotency-Key
+      operationId: v1.post_platform_payouts
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: payout.record
+      x-target-permission: payout.record
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: payout.recorded
+      x-tests: module page 'Required tests'
+  /api/v1/platform/product-approvals:
+    get:
+      tags:
+      - v1 — Platform
+      summary: Approval queue
+      operationId: v1.get_platform_product_approvals
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: product.approve
+      x-target-permission: product.approve
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/platform/product-approvals/{id}:
+    post:
+      tags:
+      - v1 — Platform
+      summary: Approve or reject
+      operationId: v1.post_platform_product_approvals_id
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: product.approve
+      x-target-permission: product.approve
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: product.approved / product.rejected
+      x-tests: module page 'Required tests'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/platform/reconciliation:
+    get:
+      tags:
+      - v1 — Platform
+      summary: COD remittance vs delivered shipments
+      operationId: v1.get_platform_reconciliation
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: courier.reconcile
+      x-target-permission: courier.reconcile
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/platform/roles:
+    get:
+      tags:
+      - v1 — Platform
+      summary: Platform roles
+      operationId: v1.get_platform_roles
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: role.manage
+      x-target-permission: role.manage
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/platform/vendors:
+    get:
+      tags:
+      - v1 — Platform
+      summary: Vendors and applications
+      operationId: v1.get_platform_vendors
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: vendor.view
+      x-target-permission: vendor.view
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/platform/vendors/{id}/status:
+    post:
+      tags:
+      - v1 — Platform
+      summary: Change vendor status with reason (re-confirm)
+      operationId: v1.post_platform_vendors_id_status
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: vendor.manage_status
+      x-target-permission: vendor.manage_status
+      x-tenant-scope: all vendors
+      x-rate-limit: 120/min
+      x-audit-event: vendor.status_changed
+      x-tests: module page 'Required tests'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/public/categories:
+    get:
+      tags:
+      - v1 — Public catalogue
+      summary: Category tree
+      operationId: v1.get_public_categories
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 120/min per IP
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/public/health:
+    get:
+      tags:
+      - v1 — Public catalogue
+      summary: Health check for the uptime monitor (no secrets or versions)
+      operationId: v1.get_public_health
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 60/min per IP
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/public/products:
+    get:
+      tags:
+      - v1 — Public catalogue
+      summary: Approved products of active vendors
+      operationId: v1.get_public_products
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 120/min per IP
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/public/products/{ulid}:
+    get:
+      tags:
+      - v1 — Public catalogue
+      summary: Product detail
+      operationId: v1.get_public_products_ulid
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 120/min per IP
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+      parameters:
+      - name: ulid
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/public/search:
+    get:
+      tags:
+      - v1 — Public catalogue
+      summary: FULLTEXT product search (ADR-10)
+      operationId: v1.get_public_search
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 60/min per IP
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+  /api/v1/public/vendors/{slug}:
+    get:
+      tags:
+      - v1 — Public catalogue
+      summary: Vendor store page
+      operationId: v1.get_public_vendors_slug
+      security: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: —
+      x-target-permission: —
+      x-tenant-scope: none
+      x-rate-limit: 120/min per IP
+      x-audit-event: —
+      x-tests: module page 'Required tests'
+      parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/vendor/balance:
+    get:
+      tags:
+      - v1 — Vendor
+      summary: Pending / available / paid
+      operationId: v1.get_vendor_balance
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: finance.view
+      x-target-permission: finance.view
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+  /api/v1/vendor/invitations:
+    post:
+      tags:
+      - v1 — Vendor
+      summary: Invite a member
+      operationId: v1.post_vendor_invitations
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: team.manage
+      x-target-permission: team.manage
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 5/min per user
+      x-audit-event: invitation.created
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+  /api/v1/vendor/ledger:
+    get:
+      tags:
+      - v1 — Vendor
+      summary: Own ledger entries
+      operationId: v1.get_vendor_ledger
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: finance.view
+      x-target-permission: finance.view
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+  /api/v1/vendor/members:
+    get:
+      tags:
+      - v1 — Vendor
+      summary: Team members
+      operationId: v1.get_vendor_members
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: team.manage
+      x-target-permission: team.manage
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+  /api/v1/vendor/orders:
+    get:
+      tags:
+      - v1 — Vendor
+      summary: Own vendor orders
+      operationId: v1.get_vendor_orders
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: order.view
+      x-target-permission: order.view
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+  /api/v1/vendor/orders/{ulid}/accept:
+    post:
+      tags:
+      - v1 — Vendor
+      summary: Accept order
+      operationId: v1.post_vendor_orders_ulid_accept
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: order.accept
+      x-target-permission: order.accept
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: order.status_changed
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+      parameters:
+      - name: ulid
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/vendor/orders/{ulid}/cancel:
+    post:
+      tags:
+      - v1 — Vendor
+      summary: Cancel before handover
+      operationId: v1.post_vendor_orders_ulid_cancel
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: order.cancel
+      x-target-permission: order.cancel
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: order.status_changed
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+      parameters:
+      - name: ulid
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/vendor/orders/{ulid}/ready:
+    post:
+      tags:
+      - v1 — Vendor
+      summary: Packed; book Steadfast parcel
+      operationId: v1.post_vendor_orders_ulid_ready
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: order.accept + shipment.book
+      x-target-permission: order.accept + shipment.book
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: shipment.booked
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+      parameters:
+      - name: ulid
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/vendor/payout-requests:
+    post:
+      tags:
+      - v1 — Vendor
+      summary: Request payout; requires Idempotency-Key
+      operationId: v1.post_vendor_payout_requests
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: payout.request
+      x-target-permission: payout.request
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: payout.requested
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+  /api/v1/vendor/products:
+    get:
+      tags:
+      - v1 — Vendor
+      summary: Own products
+      operationId: v1.get_vendor_products
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: product.view
+      x-target-permission: product.view
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+    post:
+      tags:
+      - v1 — Vendor
+      summary: Create draft product
+      operationId: v1.post_vendor_products
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: product.create
+      x-target-permission: product.create
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: product.created
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+  /api/v1/vendor/products/{id}:
+    patch:
+      tags:
+      - v1 — Vendor
+      summary: Edit product (creates a pending revision when approved)
+      operationId: v1.patch_vendor_products_id
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: product.update
+      x-target-permission: product.update
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: product.updated
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      tags:
+      - v1 — Vendor
+      summary: Soft-delete product
+      operationId: v1.delete_vendor_products_id
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: product.delete
+      x-target-permission: product.delete
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: product.deleted
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/vendor/products/{id}/stock:
+    post:
+      tags:
+      - v1 — Vendor
+      summary: Post a stock adjustment
+      operationId: v1.post_vendor_products_id_stock
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: inventory.adjust
+      x-target-permission: inventory.adjust
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: inventory.adjusted
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/vendor/products/{id}/submit:
+    post:
+      tags:
+      - v1 — Vendor
+      summary: Submit for approval
+      operationId: v1.post_vendor_products_id_submit
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: product.submit
+      x-target-permission: product.submit
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: product.submitted
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/vendor/roles:
+    get:
+      tags:
+      - v1 — Vendor
+      summary: Vendor roles
+      operationId: v1.get_vendor_roles
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: role.manage
+      x-target-permission: role.manage
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+  /api/v1/vendor/shipments:
+    get:
+      tags:
+      - v1 — Vendor
+      summary: Own shipments
+      operationId: v1.get_vendor_shipments
+      security:
+      - sanctumSession: []
+        xsrf: []
+      responses:
+        '200':
+          description: Planned — see the module page
+      x-status: planned
+      x-permission: order.view
+      x-target-permission: order.view
+      x-tenant-scope: current vendor (TenantContext); other vendors' records return 404
+      x-rate-limit: 120/min
+      x-audit-event: —
+      x-tests: spec 16.2 for vendor endpoints (401 guest, 404 other vendor, 403 no permission, body vendor_id ignored)
+  /api/v1/webhooks/courier/steadfast:
+    post:
+      tags:
+      - Webhooks
+      summary: Steadfast parcel status callback
+      operationId: post_v1_webhooks_courier_steadfast
+      description: 'Controller: `SteadfastWebhookController`. Middleware: `api, RequireHttps, ThrottleRequests:steadfast-webhook,
+        VerifySteadfastWebhookToken`.
+
+
+        Order of checks: HTTPS (403 HTTPS_REQUIRED) -> rate limit (429 RATE_LIMITED) -> Authorization: Bearer STEADFAST_WEBHOOK_TOKEN
+        (401 WEBHOOK_TOKEN_INVALID; 503 WEBHOOK_NOT_CONFIGURED if unset) -> validation (422) -> duplicate check (unique courier+consignment_id+status)
+        -> delivered/partial_delivered re-checked with GET /status_by_cid (409 DELIVERY_NOT_CONFIRMED, 503 COURIER_UNAVAILABLE).
+        Header format taken from the steadfast-laravel-package source; confirm on the first live callback.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SteadfastWebhook'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SteadfastWebhookResult'
+        '401':
+          description: WEBHOOK_TOKEN_INVALID
+        '403':
+          description: HTTPS_REQUIRED
+        '409':
+          description: DELIVERY_NOT_CONFIRMED
+        '422':
+          $ref: '#/components/responses/Validation'
+        '429':
+          description: RATE_LIMITED
+        '503':
+          description: WEBHOOK_NOT_CONFIGURED or COURIER_UNAVAILABLE
+      security:
+      - steadfastBearer: []
+      x-status: implemented
+      x-permission: HTTPS + bearer token (VerifySteadfastWebhookToken)
+      x-target-permission: signature (bearer token)
+      x-tenant-scope: consignments booked by the platform
+      x-rate-limit: STEADFAST_WEBHOOK_RATE_LIMIT per minute per IP (default 120), counted before the token check
+      x-audit-event: shipment.status_changed / shipment.delivered / shipment.cancelled
+components:
+  securitySchemes:
+    sanctumSession:
+      type: apiKey
+      in: cookie
+      name: laravel_session
+      description: Session cookie set by login (cookie name follows SESSION_COOKIE / APP_NAME).
+    xsrf:
+      type: apiKey
+      in: header
+      name: X-XSRF-TOKEN
+      description: URL-decoded value of the XSRF-TOKEN cookie from /sanctum/csrf-cookie.
+    steadfastBearer:
+      type: http
+      scheme: bearer
+      description: STEADFAST_WEBHOOK_TOKEN, the same value entered in the Steadfast portal (documentation/security/steadfast.md).
+  responses:
+    Unauthenticated:
+      description: Not signed in
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+    NotAdmin:
+      description: Signed in but not an admin ('Unauthorized. Admin access required.')
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+    SessionExpired:
+      description: Admin idle for more than ADMIN_IDLE_TIMEOUT_MINUTES (15), or CSRF token mismatch
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+    Validation:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+  schemas:
+    Message:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    CodedError:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+          example: INSUFFICIENT_STOCK
+    AdminSession:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          nullable: true
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+            status:
+              type: integer
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    Paginated:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        data:
+          type: array
+          items:
+            type: object
+        per_page:
+          type: integer
+        total:
+          type: integer
+        last_page:
+          type: integer
+        next_page_url:
+          type: string
+          nullable: true
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+      required:
+      - email
+      - password
+    RegisterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 8
+        password_confirmation:
+          type: string
+      required:
+      - name
+      - email
+      - password
+      - password_confirmation
+    CartItemCreate:
+      type: object
+      properties:
+        product_id:
+          type: integer
+        product_variant_id:
+          type: integer
+          nullable: true
+        quantity:
+          type: integer
+          minimum: 1
+      required:
+      - product_id
+      - quantity
+    CartItemUpdate:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+      required:
+      - quantity
+    CheckoutRequest:
+      type: object
+      properties:
+        shipping_address:
+          type: object
+          properties:
+            name:
+              type: string
+            phone:
+              type: string
+            address:
+              type: string
+            city:
+              type: string
+            postal_code:
+              type: string
+              nullable: true
+          required:
+          - name
+          - phone
+          - address
+          - city
+      required:
+      - shipping_address
+    OrderStatusUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - pending
+          - confirmed
+          - processing
+          - shipped
+          - delivered
+          - cancelled
+          - refunded
+      required:
+      - status
+    CouponValidate:
+      type: object
+      properties:
+        code:
+          type: string
+        subtotal:
+          type: number
+          minimum: 0
+      required:
+      - code
+      - subtotal
+    ReviewCreate:
+      type: object
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 1000
+          nullable: true
+        order_id:
+          type: integer
+          nullable: true
+      required:
+      - rating
+    WishlistItemCreate:
+      type: object
+      properties:
+        product_id:
+          type: integer
+      required:
+      - product_id
+    CategoryWrite:
+      type: object
+      properties:
+        parent_id:
+          type: integer
+          nullable: true
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          maxLength: 255
+        image:
+          type: string
+          format: binary
+        image_alt:
+          type: string
+        icon:
+          type: string
+        short_description:
+          type: string
+          maxLength: 500
+        description:
+          type: string
+        status:
+          type: boolean
+        sort_order:
+          type: integer
+      required:
+      - name
+    BrandWrite:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        logo:
+          type: string
+          format: binary
+        description:
+          type: string
+        status:
+          type: boolean
+      required:
+      - name
+    AttributeWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+      required:
+      - name
+    AttributeValueWrite:
+      type: object
+      properties:
+        value:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+      required:
+      - value
+    ProductWrite:
+      type: object
+      properties:
+        category_id:
+          type: integer
+        brand_id:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        slug:
+          type: string
+        sku:
+          type: string
+        short_description:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        compare_price:
+          type: number
+        cost_price:
+          type: number
+        stock:
+          type: integer
+        low_stock_threshold:
+          type: integer
+        thumbnail:
+          type: string
+          format: binary
+        images:
+          type: array
+          items:
+            type: string
+            format: binary
+        delete_images:
+          type: array
+          items:
+            type: integer
+          description: Update only
+        primary_image_id:
+          type: integer
+          description: Update only
+        is_featured:
+          type: boolean
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+        meta_title:
+          type: string
+        meta_description:
+          type: string
+      required:
+      - category_id
+      - name
+      - price
+    DescriptionImageUpload:
+      type: object
+      properties:
+        upload:
+          type: string
+          format: binary
+      required:
+      - upload
+    VariantWrite:
+      type: object
+      properties:
+        sku:
+          type: string
+        price:
+          type: number
+        compare_price:
+          type: number
+        stock:
+          type: integer
+        image:
+          type: string
+          format: binary
+        status:
+          type: boolean
+        attribute_value_ids:
+          type: array
+          items:
+            type: integer
+    FeatureWrite:
+      type: object
+      properties:
+        feature:
+          type: string
+        sort_order:
+          type: integer
+        status:
+          type: boolean
+      required:
+      - feature
+    SpecificationWrite:
+      type: object
+      properties:
+        group_name:
+          type: string
+        name:
+          type: string
+        value:
+          type: string
+        sort_order:
+          type: integer
+        status:
+          type: boolean
+      required:
+      - name
+      - value
+    InventoryUpdate:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 0
+        reserved_quantity:
+          type: integer
+        low_stock_threshold:
+          type: integer
+      required:
+      - quantity
+    PermissionWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+      required:
+      - name
+    RoleWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        permissions:
+          type: array
+          items:
+            type: string
+      required:
+      - name
+    AssignRoles:
+      type: object
+      properties:
+        roles:
+          type: array
+          items:
+            type: string
+      required:
+      - roles
+    UserWrite:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 20
+          nullable: true
+        password:
+          type: string
+          minLength: 8
+        status:
+          type: boolean
+        role:
+          type: string
+          description: Store only
+      required:
+      - name
+      - email
+    LogoUpload:
+      type: object
+      properties:
+        logo:
+          type: string
+          format: binary
+      required:
+      - logo
+    SeoUpdate:
+      type: object
+      properties:
+        meta_title:
+          type: string
+        meta_description:
+          type: string
+        meta_keywords:
+          type: string
+    SteadfastBookRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 255
+          nullable: true
+    SteadfastBookResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        shipment:
+          type: object
+          properties:
+            id:
+              type: integer
+            order_id:
+              type: integer
+            courier:
+              type: string
+              example: steadfast
+            consignment_id:
+              type: string
+            tracking_number:
+              type: string
+              nullable: true
+            invoice:
+              type: string
+            cod_amount:
+              type: string
+              example: '1560.00'
+            status:
+              type: string
+              example: processing
+            courier_status:
+              type: string
+              example: in_review
+            booked_at:
+              type: string
+              format: date-time
+    SteadfastWebhook:
+      type: object
+      properties:
+        consignment_id:
+          type: string
+          description: Integer or string
+        status:
+          type: string
+          enum:
+          - in_review
+          - pending
+          - hold
+          - unknown
+          - delivered_approval_pending
+          - partial_delivered_approval_pending
+          - cancelled_approval_pending
+          - unknown_approval_pending
+          - delivered
+          - partial_delivered
+          - cancelled
+        invoice:
+          type: string
+          nullable: true
+        cod_amount:
+          type: number
+          nullable: true
+          minimum: 0
+        updated_at:
+          type: string
+          nullable: true
+      required:
+      - consignment_id
+      - status
+    SteadfastWebhookResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - processed
+          - duplicate
+          - unknown_consignment
+          - delivery_not_confirmed
+    CourierSettings:
+      type: object
+      properties:
+        courier:
+          type: string
+        configured:
+          type: boolean
+        base_url:
+          type: string
+        api_key:
+          type: string
+          example: '********7890'
+        secret_key:
+          type: string
+          example: '********ghij'
+        environment:
+          type: string
+        api_key_fingerprint:
+          type: string
+          nullable: true
+        production_key_guard:
+          type: boolean
+        production_key_refused:
+          type: boolean
+        webhook_url:
+          type: string
+        webhook_token:
+          type: string
+          example: '********6789'
+    CodReconciliationReport:
+      type: object
+      properties:
+        courier:
+          type: string
+        from:
+          type: string
+          nullable: true
+        to:
+          type: string
+          nullable: true
+        totals:
+          type: object
+          properties:
+            shipments:
+              type: integer
+            expected:
+              type: string
+            collected:
+              type: string
+            difference:
+              type: string
+            mismatches:
+              type: integer
+            not_reported:
+              type: integer
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              shipment_id:
+                type: integer
+              order_id:
+                type: integer
+              order_number:
+                type: string
+              consignment_id:
+                type: string
+              courier_status:
+                type: string
+              delivered_at:
+                type: string
+                nullable: true
+              expected:
+                type: string
+              collected:
+                type: string
+                nullable: true
+              difference:
+                type: string
+                nullable: true
+              result:
+                type: string
+                enum:
+                - matched
+                - mismatch
+                - not_reported

@@ -330,3 +330,41 @@ The `editor` template no longer changes platform stock.
 | `POST`/`PATCH /suppliers` with `opening_balance`, `opening_balance_date` | `suppliers.manage` (refused with `OPENING_BALANCE_LOCKED` once a payment stands against it) |
 
 Audit events added: `supplier.opening_balance_set`, `purchase.cost.allocated`, `purchase.cost.reversed`. Purchase order status is stored as `partial` and shown as "Partly received".
+
+**Admin navigation reorganisation (2026-11-26).** Migration `2026_11_26_000002_admin_sections_audit_modules`.
+
+One permission system and one audit log, each split by **module**. The stored permission names stay the same. `App\Support\PermissionModules` assigns every permission to exactly one module by its name prefix, and a test checks that every permission in the database is mapped exactly once.
+
+| Module | Sidebar section | Existing permissions (by prefix) |
+| --- | --- | --- |
+| `online_sales` | Online Sales | `orders.*`, `shipments.*`, `courier.*`, `customers.*`, `sales.combined.*` |
+| `pos` | POS Sales | `platform_pos.*` |
+| `purchase` | Purchase & Inventory | `purchases.*`, `suppliers.*` |
+| `inventory` | Purchase & Inventory | `inventory.*` |
+| `marketplace` | Marketplace (Vendors) | `vendors.*`, `commission.*`, `payouts.*`, `reports.sales.*`, `products.approve` |
+| `website` | Website | `products.*` (except approve), `categories.*`, `brands.*`, `attributes.*`, `homepage.*`, `coupons.*`, `reviews.*`, `questions.*`, `translations.*`, `subscribers.*` |
+| `accounts` | Accounts (hidden until it has pages) | future `accounts.*`, `expenses.*`, `partners.*`, `profit.*` |
+| `access` | Settings & Access | `dashboard.*`, `admin-users.*`, `roles.*`, `permissions.*`, `audit-logs.*`, `activity.*`, `settings.*` |
+
+**New permissions (16):** `<module>.roles.manage` and `<module>.audit.view` for each of the 8 modules.
+- `administrator` gets all 8 `*.audit.view`.
+- `manager` gets `online_sales`, `pos`, `inventory` and `marketplace` `.audit.view`.
+- `super_admin` gets all 16.
+- `*.roles.manage` is never part of a template; a super admin hands it out.
+
+| Route (`/api/admin`) | Permission |
+| --- | --- |
+| `GET /sections/{module}/audit-logs`, `/export` | `{module}.audit.view` (only that module's events; Dhaka date, user, action, record and result filters; the CSV export is audited as `audit.exported`) |
+| `GET /sections/{module}/roles`, `PUT /sections/{module}/roles/{role}` | `{module}.roles.manage` (changes only that module's permissions on the role) |
+| `GET /audit-logs`, `/audit-logs/export` | `audit-logs.view`: the full log, every module (the brief's "audit.view_all") |
+| `GET /dashboard/sales` | `dashboard.view`. Each card also needs its own report permission; "Total GMV" is shown only when all three cards are. |
+
+**Section role rules, refused on the server:**
+- System roles (`admin`, `super_admin`) can't be changed.
+- Nobody can change a role they hold themselves: `403 SELF_ROLE_CHANGE`.
+- Nobody can grant a permission they don't hold: `403 PERMISSION_ESCALATION`. Removing a permission is always allowed.
+- Each change is audited as `role.permissions_updated`, with the module, before, after, added and removed.
+
+There are no write routes for audit records, and a test fails if one is ever added.
+
+**Starter roles** (editable; created only when no role with that name exists): Order Manager, Cashier, Store Manager, Purchase Officer, Inventory Manager, Accountant, Partner, Content Manager. Their permission lists are in the migration.

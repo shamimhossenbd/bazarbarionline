@@ -17,6 +17,7 @@ This is v2 of the BazarBariOnline specification. It replaces v1 (Parts 1–40) w
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v2.10 | 2026-11-26 | Admin navigation reorganised into seven sections: Online Sales, POS Sales, Purchase & Inventory, Marketplace, Website, Accounts and Settings & Access. One audit log with a `module` per event, and one permission system with a module map (stored names unchanged). Each section has its own Audit log and Roles & permissions pages. Eight starter roles. Dashboard cards for Online, POS and Vendor sales, plus "Total GMV". The admin Orders page is built (it fixes the old 404). See permissions.md. |
 | v2.9 | 2026-11-26 | Owner addendum A–H adopted as **ADR-13 (first-party retail)**:<br>• The platform sells its own stock through POS and online. Platform-owned stays `vendor_id NULL`, shown as the house seller "BazarBari Official".<br>• One stock ledger with reservations (available = on hand − reserved); weighted average cost; one location, with `location_id` ready.<br>• `sales_channel` on headers, payments and returns.<br>• Platform and marketplace reports are never added together.<br>• No vendor purchasing in this phase.<br>BD-01 and BD-11 amended, BD-15 and BD-16 added; sections 5, 9, 14, 17 and 18 updated; module 09 rewritten. |
 | v2.8 | 2026-11-25 | Master task adopted (ADR-12, supersedes ADR-11): vendors online-only, Platform Admin POS for platform products, no subscriptions, admin-managed per-vendor commission with a DB-stored default. BD-01/11/13/14 updated. |
 | v2.7 | 2026-11-25 | BD-14 decided (paid plans with limits and optional trial, manual activation, no gateway; no POS commission) and BD-01 amended accordingly. ADR-11 updated. |
@@ -506,7 +507,7 @@ One `audit_logs` table (or the existing activity log if Phase 0 finds one): `id`
 
 Events logged at minimum: login success/failure, 2FA changes, role and permission changes, membership changes, invitation lifecycle, vendor status changes, product approvals, order cancellations by staff, refunds, commission rule changes, payout requests/approvals/recordings, settings changes, exports of customer or financial data, and denied cross-tenant attempts.
 
-Rules: append-only in the application; no update or delete routes; vendors see only their own vendor's events; platform auditors see all. Retention period is decided by the owner with legal advice and written into this section; until then nothing is purged.
+Every event also stores its `module` (online_sales, pos, purchase, inventory, marketplace, website, accounts, access; `App\Support\PermissionModules`). Each admin section shows only its own module's events, and Settings & Access shows them all. Rules: append-only in the application; no update or delete routes; vendors see only their own vendor's events; platform auditors see all. Retention period is decided by the owner with legal advice and written into this section; until then nothing is purged.
 
 ### 12.3 Later additions
 

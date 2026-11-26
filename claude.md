@@ -17,6 +17,10 @@ This is v2 of the BazarBariOnline specification. It replaces v1 (Parts 1–40) w
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v2.9 | 2026-11-26 | Owner addendum A–H adopted as **ADR-13 (first-party retail)**:<br>• The platform sells its own stock through POS and online. Platform-owned stays `vendor_id NULL`, shown as the house seller "BazarBari Official".<br>• One stock ledger with reservations (available = on hand − reserved); weighted average cost; one location, with `location_id` ready.<br>• `sales_channel` on headers, payments and returns.<br>• Platform and marketplace reports are never added together.<br>• No vendor purchasing in this phase.<br>BD-01 and BD-11 amended, BD-15 and BD-16 added; sections 5, 9, 14, 17 and 18 updated; module 09 rewritten. |
+| v2.8 | 2026-11-25 | Master task adopted (ADR-12, supersedes ADR-11): vendors online-only, Platform Admin POS for platform products, no subscriptions, admin-managed per-vendor commission with a DB-stored default. BD-01/11/13/14 updated. |
+| v2.7 | 2026-11-25 | BD-14 decided (paid plans with limits and optional trial, manual activation, no gateway; no POS commission) and BD-01 amended accordingly. ADR-11 updated. |
+| v2.6 | 2026-11-25 | Retail SaaS direction: BD-11 reversed (POS in scope), BD-13 added (Vendor = tenant, storefronts later), BD-14 opened (plans vs BD-01, POS commission). ADR-11 written. |
 | v2.5 | 2026-11-19 | Source control: three private GitHub repositories (`bazarbari-api`, `bazarbari-web`, `bazarbarionline` for docs); section 1, 15.2, 19.3 Q10, audit §7.2, runbooks 03 and README updated. Project READMEs written; `runbooks/incident-log.md` created. |
 | v2.4 | 2026-11-19 | Steadfast courier integration merged (`laravel-ecommerce` master `dace94a`, 13 commits, 148 tests): modules 04 and 13 now Partial, module 16 note updated; `openapi.yaml` regenerated (105 routes; first `/api/v1` route is the Steadfast webhook); section 1 source control updated (both projects in Git); audit §7 adds the `CACHE_DRIVER` finding. |
 | v2.3 | 2026-11-19 | Documentation completed: permission catalogue (`permissions.md`), OpenAPI file (`openapi.yaml`, 98 implemented routes + planned v1), six runbooks (`runbooks/`). Audit §7 records fixes since Phase 0 (H1, H2, H4 fixed; H3, H5 partly). |
@@ -68,11 +72,16 @@ BazarBariOnline is a Laravel 13 API with a Next.js storefront and dashboards, ho
 
 ## 2. Business model and decision register
 
-BazarBariOnline is a commission-only marketplace: vendors list for free, the platform takes a commission per delivered item, collects Cash on Delivery through Steadfast Courier, and pays vendors manually 7 days after delivery. Eleven of twelve decisions below were confirmed by the owner on 19 Nov 2026; only the legal basis (BD-12) is still open.
+BazarBariOnline is a marketplace and a first-party retailer.
+
+- **Vendors** list for free. The platform takes a commission per delivered item, collects Cash on Delivery through Steadfast Courier, and pays vendors manually 7 days after delivery.
+- **The platform** also buys its own stock and sells it through its POS and online (BD-15, ADR-13).
+
+The owner first confirmed these decisions on 19 Nov 2026, with amendments since. Only the legal basis (BD-12) is still open.
 
 | ID | Question | Decision | Status |
 | --- | --- | --- | --- |
-| BD-01 | How does the platform earn? | Commission only, per delivered order item, set by category with optional vendor override. No vendor subscription fees. | Confirmed |
+| BD-01 | How does the platform earn? | Two ways, kept apart in reports (ADR-13):<br>1. **Commission** per delivered **marketplace vendor** order item. The rate is set per vendor by an authorized admin, with an admin-editable platform default stored in the database as the fallback. 0% is a valid rate. The rate is snapshotted at checkout.<br>2. **First-party sales** of the platform's own purchased stock, through POS and online (BD-15). This is platform sales revenue, never commission.<br>**No subscriptions** (ADR-12). | Confirmed (amended 2026-11-26) |
 | BD-02 | Can one cart hold items from several vendors? | Yes. Checkout creates one **parent order** for the customer and one **vendor order** per vendor. Each vendor order ships, cancels and settles on its own. | Confirmed |
 | BD-03 | Who ships? | Vendor packs; the platform books **Steadfast Courier** through its API. A second courier may be added after launch. | Confirmed |
 | BD-04 | Payment methods at launch | **Cash on Delivery only.** Online payment (SSLCommerz or direct bKash/Nagad) is added after launch. | Confirmed |
@@ -82,7 +91,11 @@ BazarBariOnline is a commission-only marketplace: vendors list for free, the pla
 | BD-08 | Who pays delivery charge? | Customer, per vendor order, by zone (inside Dhaka, Dhaka suburbs, outside Dhaka). | Confirmed |
 | BD-09 | Product approval | **Every** new or edited product from **every** vendor needs platform approval before it is visible. No auto-approve. | Confirmed |
 | BD-10 | Categories and brands | Global, owned by the platform. Vendors pick from them and can request new ones. | Confirmed |
-| BD-11 | POS for physical shops | Not needed. POS, cash register and cashier roles are removed from scope. | Confirmed |
+| BD-11 | POS for physical shops | **POS is required for the platform's own (first-party) sales** (ADR-12, extended by ADR-13 on 2026-11-26).<br>• It sells platform-owned products only and has its own sales, registers, sessions, returns and reports.<br>• It shares the one stock ledger with online sales.<br>• It creates no vendor earnings or commission.<br>• Vendors have no POS. | Confirmed (amended 2026-11-26) |
+| BD-15 | Platform-owned stock | **First-party retail** (ADR-13):<br>• The platform buys stock through central purchasing and sells it through POS and through the online storefront, next to vendor products.<br>• Platform-owned means `products.vendor_id IS NULL`, with the same product, variant, stock and movement tables as vendors. There is no parallel system and no "house vendor" row.<br>• Customers see the house seller identity "BazarBari Official".<br>• One stock ledger: available = on hand − reserved. POS takes stock at once. Online checkout reserves it, and the reservation converts when the order is confirmed.<br>• Weighted average cost; the unit cost is stored on every sale line.<br>• One stock location for now. | Confirmed (2026-11-26) |
+| BD-16 | Vendor purchasing | **Not offered in this phase** (ADR-13). The vendor purchasing routes, UI and permissions are switched off, and the code is kept for later. Vendors record stock with audited adjustments. Replaces decision D1 of 2026-11-25 for now. | Confirmed (2026-11-26) |
+| BD-13 | Tenant model | Each Vendor is a marketplace tenant (isolated data, own staff RBAC), online sales only. The vendor Retail SaaS of ADR-11 is withdrawn (ADR-12). | Confirmed (amended 2026-11-25) |
+| BD-14 | Vendor subscription plans and POS commission | **Closed: no subscription plans, fees or trials** (ADR-12). Platform POS carries no vendor commission. | Confirmed (2026-11-25) |
 | BD-12 | Legal basis | Platform operates under Bangladesh's Digital Commerce Operation Guidelines (2021) and related rules. A qualified adviser must confirm obligations on delivery time limits, refunds and trade licence/e-TIN/VAT. | Open |
 
 **Rule:** when an assumption changes, update this table first, then the affected sections, then the change log in section 0.
@@ -144,6 +157,9 @@ Ten decisions fix the shape of the system; each is proposed, to be confirmed aga
 | 08 Money | Store amounts as `DECIMAL(12,2)` in BDT; all arithmetic in PHP via integer paisa or `brick/money`; never floats. Single currency in MVP. | Avoid rounding errors in commission and payouts | `FLOAT` columns |
 | 09 Time | Store UTC (`APP_TIMEZONE=UTC`); show Asia/Dhaka. Reports define day boundaries in Asia/Dhaka. | Correct daily sales totals | Storing local time |
 | 10 Search and media | MySQL FULLTEXT search on product name and tags for MVP. Images converted to WebP in 3 sizes on upload, stored on the public disk outside the code folder. | Fits shared hosting; revisit Meilisearch/CDN when catalogue grows | External search service at launch |
+| 11 Retail SaaS | Superseded by ADR-12 (only the shared inventory slice was kept) | — | — |
+| 12 Platform POS, no subscriptions | Vendors sell online only. POS is a Platform Admin module for platform-owned products. No subscription plans. Commission is set per vendor. | Owner master task, 2026-11-25 | Vendor POS; paid plans |
+| 13 First-party retail | Platform stock is `vendor_id NULL` with a house seller identity. One stock ledger with reservations. Weighted average cost. `location_id` ready for more locations. `sales_channel` everywhere. Reports never sum the platform and marketplace sections. No vendor purchasing for now. | Owner addendum A–H, 2026-11-26 | A "house vendor" row in `vendors`: it would make commission, ledger and payouts fail open |
 
 Each ADR gets its own short file in `documentation/adr/NN-title.md` with Context, Decision, Consequences and Date.
 
@@ -183,7 +199,7 @@ One `users` table holds everyone; what a user may do comes from platform roles p
 | Vendor | Order Staff | Own vendor orders and shipments |  |
 | Vendor | Accountant | Own vendor statements and payout requests (read + request) |  |
 
-POS and cashier roles are out of scope (BD-11).
+Vendor POS does not exist. Platform POS and cashier roles are Platform Admin permissions only (BD-11, ADR-12).
 
 ### 6.4 Permission catalogue rules
 
@@ -343,7 +359,9 @@ The MVP needs about 35 tables beyond Laravel and Spatie defaults; this is a targ
 | Identity | `users`, `vendor_user`, Spatie `roles`/`permissions`/pivots, `team_invitations`, `personal_access_tokens`, `sessions` | Platform | Unique email and phone; membership unique per (user, vendor) |
 | Vendors | `vendors`, `vendor_documents`, `vendor_settings`, `vendor_status_history` | Platform | `status` enum; trade licence and NID stored as private files |
 | Catalogue | `categories`, `brands`, `attributes`, `attribute_values`, `products`, `product_variants`, `product_images`, `product_attribute_values` | Platform (taxonomy), vendor (products) | `products.vendor_id`; SKU unique per vendor; FULLTEXT(name, tags) |
-| Inventory | `stock_levels`, `stock_movements`, `stock_reservations` | Vendor | Every change is a movement row; `stock_levels` is a cached sum |
+| Inventory | Balance on `products.stock` / `product_variants.stock` (on hand) and `reserved_stock` (planned, `000012`)<br>`stock_movements` (built)<br>`stock_reservations` and `stock_locations` (planned, `000012`) | Vendor or platform (`vendor_id NULL`) | Every on-hand change is a movement row in the same transaction, with the row locked `FOR UPDATE`.<br>Available = on hand − reserved.<br>One location (`MAIN`) for now; `location_id` is on movements, reservations, receipts and registers.<br>`stock_levels` comes only when a second location arrives (ADR-13). |
+| Purchasing | `suppliers`, `purchase_orders`(+items), `purchase_receipts`(+items), `purchase_invoices`, `purchase_invoice_receipts`, `purchase_payments`, `purchase_returns`(+items) | Platform (the vendor side is off, BD-16) | Weighted average cost on `products` and `product_variants.average_cost`. Payments are append-only. |
+| Platform POS | `pos_settings`, `pos_registers`, `pos_sessions`, `pos_sales`(+items), `pos_returns`(+items), `pos_payments` | Platform | Platform-owned products only. `sales_channel = pos`. No vendor earnings or commission. |
 | Customers | `customer_addresses`, `wishlists`, `carts`, `cart_items` | Customer | Address has division, district, area, phone |
 | Orders | `orders` (parent), `vendor_orders`, `order_items`, `order_addresses`, `order_status_history` | Customer + vendor | Snapshots on items; `vendor_orders.vendor_id` indexed with status and date |
 | Delivery | `shipping_zones`, `shipments`, `courier_events`, `courier_remittances` | Platform + vendor | Unique (courier, consignment\_id) |
@@ -561,6 +579,22 @@ Day, week and month boundaries are Asia/Dhaka. Rates always show numerator and d
 
 Exports: CSV in MVP, generated by a queued job, stored privately, downloadable for 24 hours through a signed link, logged as an audit event. Exports apply exactly the same scope as the screen.
 
+### 14.2a Platform-owned and marketplace sales (ADR-13)
+
+The admin sales reports have two sections. Their totals are **never added together**:
+
+1. **Platform-owned sales:**
+   - POS (`pos_sales`);
+   - Online (`order_items` with `vendor_id IS NULL`);
+   - Combined = POS + platform Online.
+   
+   Each shows revenue, discounts, returns, cost and margin. Cost comes from the unit cost stored on each sale line.
+2. **Marketplace vendor sales:** GMV, commission and vendor earnings for `order_items` with `vendor_id IS NOT NULL`.
+
+More rules:
+- Every header, payment and return carries `sales_channel` (`pos` or `online`). Vendor orders are always `online` and never appear in POS reports.
+- Platform POS sales create no vendor earnings or commission ledger rows.
+
 ### 14.3 Performance
 
 Start with direct queries on indexed columns. Add a `daily_vendor_stats` summary table, filled nightly, only when a report takes more than 2 seconds on production data. Cached results are keyed by vendor, filters and locale.
@@ -687,7 +721,18 @@ Phases are not to scale in time; the gate table below gives each gate's exact co
 
 - Coupons funded by vendors, campaigns, Meta Pixel and Conversions API
 - Online payment (SSLCommerz or direct bKash/Nagad), second courier
-- Purchases and suppliers for vendor stock records
+- Purchases and suppliers for vendor stock records (built in part, then switched off by BD-16)
+
+**First-party retail track (ADR-13; runs alongside the phases above, local and QA only until launch)**
+
+```
+Done   Platform POS (sales, registers, sessions, returns, reports)
+Done   Central purchasing phase 1–2 (suppliers, PO, receiving, WAC, invoices, payments, returns)
+P1     Docs (ADR-13)  ─►  P2 migration 000012  ─►  P3 reservations in InventoryService
+P4     Movement source names  ─►  P5 vendor purchasing off  ─►  P6 two-section reports
+P7     UI (on hand / reserved / available, house seller)  ─►  P8 browser QA
+Then   Partnership Accounting (ADR-14): AC0 docs ─► AC1 ledger core ─► … ─► AC8 QA
+```
 - Support tickets and announcements
 - Saved filters, command palette, dashboard personalization
 - Risk scoring, approval workflow engine, multi-warehouse, loyalty, mobile app API
@@ -715,7 +760,7 @@ The register tracks every MVP module; set each Status from Phase 0 evidence, and
 | [Vendor onboarding and lifecycle](modules/06-vendor-lifecycle.md) | 2 | Tenancy, roles | Missing | — |
 | [Catalogue (categories, brands, products, variants, media)](modules/07-catalogue.md) | 2 | Vendors | Partial | Full single-shop catalogue with admin CRUD; no `vendor_id`, ulid, bilingual fields; namespace bug H2 fixed; admin review list still empty (H3 remainder) |
 | [Product approval](modules/08-product-approval.md) | 2 | Catalogue | Missing | Only `is_active` flag |
-| [Inventory and reservations](modules/09-inventory.md) | 2 | Catalogue | Partial | Three stock sources (checkout updates two, not `inventories`); no movements or reservations; broken routes removed |
+| [Inventory and reservations](modules/09-inventory.md) | 2 | Catalogue | Partial | (2026-11-26) Built:<br>• one balance (`inventories` dropped);<br>• `stock_movements` written only through `InventoryService`, with ownership guards;<br>• admin and vendor stock reports;<br>• audited adjustments;<br>• platform stock read-only in product forms.<br>Planned (ADR-13 P2–P3): reservations, available stock, locations. |
 | [Customer account, cart, wishlist](modules/10-customer-cart.md) | 2 | Catalogue | Partial | APIs and UI work; cart item IDOR fixed (H1) |
 | [Checkout and order split](modules/11-checkout-order-split.md) | 2 | Cart, inventory | Partial | Single-order checkout API with stock lock (H5 partly fixed: cart price trusted, no idempotency); no split; frontend checkout files empty; admin order list fixed (H4) |
 | [Payments (COD; online after launch)](modules/12-payments.md) | 3 | Checkout | Missing | `payments` table and unrouted controller only |
@@ -723,8 +768,12 @@ The register tracks every MVP module; set each Status from Phase 0 evidence, and
 | [Returns and refunds](modules/14-returns-refunds.md) | 3 | Payments, shipments | Missing | — |
 | [Commission, ledger, payouts](modules/15-finance.md) | 3 | Orders, refunds | Missing | — |
 | [Reports, notifications, storefront SEO](modules/16-reports-notifications-seo.md) | 3 | All above | Partial | Site and product SEO meta; COD reconciliation report and COD mismatch notification only |
+| Platform POS (ADR-12/13) | First-party | Inventory | Partial | Built 2026-11-25 (`000009`, `000010`): terminal, sales, voids, returns, registers, sessions, settings, POS reports. Browser QA passed on QA. Missing: `sales_channel` on payments and returns, and selling against available stock (ADR-13 P2–P3). |
+| Central purchasing (ADR-13) | First-party | Inventory | Partial | Built 2026-11-25/26 (`000011`): suppliers, purchase orders, receiving with WAC, invoices, payments, returns, stock adjustment page. No supplier-finance UI. The vendor side is to be switched off (BD-16, P5). |
+| First-party sales reports (ADR-13) | First-party | POS, checkout | Missing | Two sections (14.2a) planned in P6. |
+| Partnership accounting (ADR-14) | First-party | All money modules | Missing | Plan approved 2026-11-26. Starts after ADR-13 P3, from AC0. |
 
-Status values come from the [Phase 0 audit](audit/phase-0.md) of 19 Nov 2026, with notes updated from its §7 re-check. No module is Done.
+Status values come from the [Phase 0 audit](audit/phase-0.md) of 19 Nov 2026, with notes updated from its §7 re-check. The Inventory row and the first-party rows were updated on 2026-11-26 from code evidence. The other rows have not been re-checked since Phase 0, and many are out of date (for example tenancy, roles, approval and finance were built from 20 to 25 Nov). A full refresh of the register is a separate task. No module is Done.
 
 ## 19. Phase 0 audit checklist and open questions
 

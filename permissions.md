@@ -193,3 +193,127 @@ return [
 ```
 
 The seeder reads this file, creates missing permissions, and fails loudly if a role definition references a permission that is missing or has the wrong scope. Role grants live in `config/roles.php` with the matrices from sections 3 and 4.
+
+## 7. Implemented route permissions: ADR-12 phase 2, slice 1 (2026-11-25)
+
+The backend enforces permissions through `App\Support\PermissionRegistry`, not through a `config/permissions.php` file. Admin routes fail closed: a route with no registry entry is refused. Vendor routes use the shop's own `VendorPermissionRegistry`, and the shop comes from the caller's membership. The routes below were added or changed in this slice. They reuse permissions that already exist. No new permission was created.
+
+| Route | Checks today | Target name (section 2) | Audit event |
+| --- | --- | --- | --- |
+| `POST /api/admin/products/{product}/suspend` | `products.approve` | `product.approve` | `product.suspended` |
+| `POST /api/admin/products/{product}/reactivate` | `products.approve` | `product.approve` | `product.reactivated` |
+| `GET /api/admin/products/{product}/history` | `products.view` **or** `products.approve` | `product.view` | — |
+| `GET /api/vendor/products/{product}/history` | vendor `products.manage`, own shop only (another shop: 404); admin identities hidden | `product.view` (vendor) | — |
+| `GET /api/admin/commission` | `commission.view` (Phase 3) | `finance.view` | — |
+| `GET /api/admin/commission/vendors` | `commission.view` (Phase 3) | `finance.view` | — |
+| `PUT /api/admin/commission/default` (reason required) | `commission.manage` (Phase 3) | `finance.commission.manage` | `commission.default_changed` |
+| `PUT /api/admin/vendors/{vendor}/commission` (needs the `commission_rate` key and a reason; `null` = use default, `0` = no commission) | `commission.manage` (Phase 3) | `finance.commission.manage` | `vendor.commission_changed` |
+
+Vendors and vendor staff can never reach the commission routes. Those routes sit in the admin group behind `AdminMiddleware`, and a vendor cannot hold platform permissions.
+
+**Removed (ADR-12):** the four `saas.*` permissions (`saas.plans.view`, `saas.plans.manage`, `saas.subscriptions.view`, `saas.subscriptions.manage`) and their `/api/admin/saas/*` routes. They were never seeded on any database, because migration `2026_11_25_000004` never ran, so no grants needed moving.
+
+**Phase 3 (2026-11-25): dedicated commission permissions.** Two new admin permissions, in the registry group `commission` ("Vendor commission"):
+
+| Permission | Scope | Allows | Replaces |
+| --- | --- | --- | --- |
+| `commission.view` | platform | Open Vendor Commission; read the default, every vendor's own and effective rate, and the change history | `vendors.view` on these routes |
+| `commission.manage` | platform | Change the default rate and any vendor's own rate. A reason of at least 3 characters is always required. | `vendors.update` on these routes |
+
+Migration `2026_11_25_000007_commission_permissions` copied every role grant, direct grant and explicit deny from `vendors.view` to `commission.view`, and from `vendors.update` to `commission.manage`. Nobody gained or lost access. On local data: `administrator`, `manager` and `super_admin` got both, and `support` got `commission.view`. Templates: `manager` picks up `commission.*`, `support` has `commission.view`, and `administrator` has everything. `vendors.update` no longer covers commission. Password re-confirmation was not added; it is still a later item (spec 12.1). The spec name `finance.commission.manage` stays the target for a future finance-permission rename.
+
+**Phase 4 (2026-11-25): sales report permissions.** Registry group `sales-reports` ("Sales reports"):
+
+| Permission | Scope | Allows | Granted by migration `000008` to |
+| --- | --- | --- | --- |
+| `reports.sales.view` | platform | Vendor Sales & Performance: `GET /api/admin/reports/vendor-sales`, `…/products`, `…/rankings`, `…/{vendor}` | administrator, manager, super_admin |
+| `reports.sales.export` | platform | CSV exports (`GET /api/admin/reports/vendor-sales/export/{type}`: vendor-sales, product-sales, commission, earnings, payouts). Needs `reports.sales.view` too. Each export is audited as `report.exported`. | administrator, manager, super_admin |
+
+`support` gets neither. The manager template picks up `reports.*`.
+
+**Phase 5b (2026-11-25): admin inventory reports.** These use the existing `inventory.view` permission, so no new permission and no migration.
+
+| Route | Checks today |
+| --- | --- |
+| `GET /api/admin/inventory/summary`, `/stock`, `/movements` | `inventory.view` |
+
+- These routes are read-only; there is no admin route that writes stock.
+- Platform admins change platform stock through the product forms. Those forms show a vendor product's stock as read-only and leave it out of the request. The backend still refuses any admin change to vendor stock with `403 STOCK_OWNERSHIP_DENIED`.
+- Vendors see the history of their own products only: `GET /api/vendor/products/{product}/stock-movements`, with `products.manage`. Another shop's product returns 404.
+
+
+**Phase 6a (2026-11-25): Platform POS permissions.** Registry group `platform-pos` ("Platform POS"). Migration `2026_11_25_000009_platform_pos` creates these permissions. It grants all ten to `administrator` and `super_admin`, and all except `platform_pos.settings.manage` to `manager`. `support` and `editor` get none. Vendor roles can never hold them: `VendorPermissionRegistry` is separate, and a test checks this.
+
+| Permission | Allows |
+| --- | --- |
+| `platform_pos.access` | Open the module: `GET /api/admin/pos/bootstrap`, `/registers`, `/settings`. Every other POS route requires it as well. |
+| `platform_pos.sales.create` | Product lookup (`/pos/products?code=` or `?search=`; platform-owned, active, approved only), customer lookup by exact phone (masked), `POST /pos/sales` |
+| `platform_pos.sales.view` | See every sale (`GET /pos/sales`, `/pos/sales/{id or number}`). Without it, a cashier sees only their own sales; others return 404. |
+| `platform_pos.sales.cancel` | `POST /pos/sales/{sale}/void`. Allowed only while the sale's own session is open and the sale has no returns. |
+| `platform_pos.sales.return` | `POST /pos/sales/{sale}/returns`, within the return window, refunded from the returning cashier's open session. Can find any sale. |
+| `platform_pos.discount.apply` | Line and sale discounts. A reason is required, and the total discount is capped at `max_discount_percent` (default 10) of the subtotal. |
+| `platform_pos.register.open` | `POST /pos/registers/{register}/open`. Each register and each cashier can have only one open session. |
+| `platform_pos.register.close` | `POST /pos/sessions/{session}/close` with a cash count. Closing someone else's session also needs `settings.manage`. |
+| `platform_pos.reports.view` | `GET /pos/sessions`, `/pos/sessions/{session}` (session summary by method) |
+| `platform_pos.settings.manage` | `POST`/`PATCH /pos/registers`, `PUT /pos/settings` |
+
+Audit events: `pos.session.opened`, `pos.session.closed`, `pos.sale.created`, `pos.discount.applied`, `pos.sale.voided`, `pos.sale.returned`, `pos.register.created`, `pos.register.updated`, `pos.settings.updated`.
+
+**POS Sales Management (2026-11-25).** Migration `2026_11_25_000010_pos_sales_management` adds four permissions and copies the existing grants, so nobody gained or lost access on the day:
+
+| Permission | Grants copied from | Allows |
+| --- | --- | --- |
+| `platform_pos.sales.view_own` | `platform_pos.sales.create` | List and open your own POS sales (`/pos/sales`, `/pos/sales/{sale}`, `/pos/sales/{sale}/history`) |
+| `platform_pos.refunds.process` | `platform_pos.sales.return` | Pay refunds. `POST /pos/sales/{sale}/returns` now needs `sales.return` **and** `refunds.process` |
+| `platform_pos.registers.manage` | `platform_pos.settings.manage` | Create, edit and activate/deactivate registers; close another cashier's session (it was `settings.manage`) |
+| `platform_pos.reports.export` | none; granted to administrator and super_admin | CSV export: `/pos/sales/export` (also needs `sales.view`) and `/pos/reports/export/{type}` (also needs `reports.view`) |
+
+New routes:
+- `GET /pos/returns`: needs `sales.view` or `sales.return`.
+- `GET /pos/registers/{register}`: needs `registers.manage` or `reports.view`.
+- `GET /pos/reports/{type}`: needs `reports.view`. The types are summary, daily, weekly, monthly, payments, cashiers, registers, cash-reconciliation and inventory-reconciliation.
+
+Every route also needs `platform_pos.access`.
+
+New audit events: `pos.sales.exported` and `pos.report.exported`. `pos.register.updated` now records the values before and after the change.
+
+**Central purchasing, phase 1 (2026-11-25).** Migration `2026_11_25_000011_central_purchasing`.
+
+Admin permissions, in the registry group `purchasing` plus two other groups:
+
+| Permission | Allows | Granted to |
+| --- | --- | --- |
+| `suppliers.view` / `suppliers.manage` | Platform suppliers: list and view / create and edit | admin, super; manager gets view |
+| `purchases.view` | Purchase orders, receipts (and, from phase 2, invoices, payments and returns) | admin, super, manager |
+| `purchases.create` | Create, edit (draft only), place and cancel purchase orders | admin, super |
+| `purchases.receive` | Receive goods into platform stock. This is the only purchase step that adds stock | admin, super, manager |
+| `purchases.return`, `purchases.invoice`, `purchases.pay`, `purchases.export` | Phase 2 and 3 | admin, super |
+| `purchases.reports.view` | Purchase reports and supplier balances (phase 3) | admin, super, manager |
+| `inventory.adjust` | `POST /api/admin/inventory/adjustments`: counted level or signed change (adjustment or damage), with a required reason; audited as `inventory.adjusted`. Platform stock only | admin, super, manager |
+| `sales.combined.view` | Combined POS + online sales report (phase 3) | admin, super, manager |
+
+**Platform stock is read-only in the product forms (D3).** A product or variant form that would change platform stock is refused with `422 PLATFORM_STOCK_READ_ONLY`. Platform stock changes only through:
+- purchase receiving;
+- POS and online sales, voids, cancellations and returns;
+- an audited adjustment.
+
+The `editor` template no longer changes platform stock.
+
+**Vendor team permissions** (`VendorPermissionRegistry`, group `purchasing`):
+- `purchases.manage`: suppliers, orders, receiving and returns for the shop's own stock. Added to existing shop roles that had `products.manage`.
+- `purchases.pay`: invoices and payments. Added to roles that had `finance.view`.
+- Templates: manager has both; staff, editor and inventory have `purchases.manage`; accountant has `purchases.pay`.
+
+**Routes:**
+- Shop side: `/api/vendor/suppliers`, `/purchase-orders` and `/purchase-receipts` (needs `vendor:active,purchases.manage`).
+- Platform side: `/api/admin/…`, the same paths.
+- The owner always comes from the caller (`PurchaseScope`), never from request input. Another owner's record returns 404, and another owner's product is refused with `PRODUCT_NOT_OWNED`.
+
+**ADR-13 first-party retail (2026-11-26, planned):**
+- ADR-13 adds **no new permissions**.
+- `sales.combined.view` now means the **platform-owned** Combined view: POS plus platform online lines. Vendor marketplace sales are never added in (spec 14.2a).
+- **Vendor purchasing is switched off (BD-16, phase P5):**
+  - `purchases.manage` and `purchases.pay` are removed from `VendorPermissionRegistry`;
+  - `routes/vendor-purchasing.php` is unregistered.
+  
+  Existing grants stay in the database but give no access, because the registry fails closed. The platform-side purchasing permissions above are unchanged.

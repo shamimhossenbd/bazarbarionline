@@ -25,6 +25,12 @@ info:
     `/api/*` and `/sanctum/*` to Laravel, so requests are same-origin.
 
 
+    **Partly stale (2026-11-25):** only the ADR-12 phase 2 slice 1, Phase 3 commission, Phase 4 vendor-sales report and Phase 5 stock-movement and admin inventory report routes were added by hand.
+    Stock changes that cross ownership answer 403 STOCK_OWNERSHIP_DENIED (POS and platform admins: platform stock only; vendors: own stock only) (commission, product
+    suspend/reactivate/history, vendor product history). Routes built after 2026-11-19 are otherwise missing and `/api/admin/inventory*` was retired; regenerate with
+    `tools/gen_openapi.py` before relying on this file.
+
+
     **Responses today** do not yet follow the `{data, meta}` envelope of spec 10.2: most return `{success, message, ...}`,
     Laravel paginator JSON or a bare model. The v1 API adopts the envelope and stable `code` values.'
 servers:
@@ -1131,6 +1137,87 @@ paths:
       x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
       x-rate-limit: 'none (spec: 120/min per user)'
       x-audit-event: inventory.updated (not yet logged)
+  /api/admin/inventory/summary:
+    get:
+      tags:
+      - Admin inventory
+      summary: Platform and vendor inventory totals and per-vendor totals
+      operationId: get_admin_inventory_summary
+      description: 'Controller: `InventoryReportController@summary` (Phase 5b, read-only). Totals per owner: items, units, value (current stock × current cost price; items without cost are not valued), low_stock, out_of_stock, without_cost.'
+      responses:
+        '200':
+          description: Success
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: inventory.view
+      x-target-permission: inventory.view
+      x-tenant-scope: platform (all owners, platform and vendor always reported apart)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/inventory/stock:
+    get:
+      tags:
+      - Admin inventory
+      summary: Current stock list (variants and product-level balances)
+      operationId: get_admin_inventory_stock
+      description: 'Controller: `InventoryReportController@stock`. Query: owner (platform|vendor), vendor_id, status (in_stock|low|out; low = 0 < stock <= low_stock_threshold), search (name or SKU), sort (name|stock|value|owner), direction, per_page (max 100).'
+      responses:
+        '200':
+          description: Success
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: inventory.view
+      x-target-permission: inventory.view
+      x-tenant-scope: platform (all owners, platform and vendor always reported apart)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/inventory/movements:
+    get:
+      tags:
+      - Admin inventory
+      summary: Stock movement history across owners
+      operationId: get_admin_inventory_movements
+      description: 'Controller: `InventoryReportController@movements`. Append-only stock_movements, newest first, each with its spec source name. Query: period (Asia/Dhaka presets or custom from/to, max 366 days), source, owner, vendor_id, product_id, per_page.'
+      responses:
+        '200':
+          description: Success
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: inventory.view
+      x-target-permission: inventory.view
+      x-tenant-scope: platform (all owners, platform and vendor always reported apart)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
   /api/admin/login:
     post:
       tags:
@@ -2445,6 +2532,151 @@ paths:
       x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
       x-rate-limit: 'none (spec: 120/min per user)'
       x-audit-event: product.deleted (not yet logged)
+  /api/admin/reports/vendor-sales:
+    get:
+      tags:
+      - Admin reports
+      summary: Vendor sales list (8.1) with totals
+      operationId: get_admin_reports_vendor_sales
+      description: 'Controller: `VendorSalesReportController@index` (master task 8). period (today|yesterday|this_week|this_month|last_month|this_year|custom; default this_month), from/to (Y-m-d, required for custom; max 366 days). Days are Asia/Dhaka; weeks start on Saturday. Line filters: vendor_id, order_status, category_id (current product category), product_id, commission_rate (snapshot), payment_status. Also: search, vendor_status, only_with_sales, sort (net_sales|gross_sales|units|orders|commission|vendor_earnings|last_sale_at|name), direction, per_page. Returns period, totals and vendors (paginator; each row: figures + pending_earnings, paid_out, remaining_payable, open_payouts). Paid-amount model: Gross = line totals (cancelled orders and lines excluded; refunded orders count); Discounts = platform coupon share; Refunds = paid amount of refunded orders; Net = Gross - Discounts - Refunds; Commission/Vendor earnings = snapshots of non-refunded lines. Vendor products only; platform products and POS never included.'
+      responses:
+        '200':
+          description: Success
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: reports.sales.view
+      x-target-permission: reports.sales.view
+      x-tenant-scope: platform (all vendors)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/reports/vendor-sales/export/{type}:
+    get:
+      tags:
+      - Admin reports
+      summary: CSV export of vendor sales, product sales, commission, earnings or payouts (8.6)
+      operationId: get_admin_reports_vendor_sales_export
+      description: 'Controller: `SalesReportExportController@export`. type = vendor-sales | product-sales | commission | earnings | payouts.
+        Same period rules as the screens (Asia/Dhaka days, weeks from Saturday, max 366 days). vendor-sales takes the list filters;
+        product-sales and commission take the line filters (vendor_id, order_status, category_id, product_id, commission_rate, payment_status);
+        earnings takes vendor_id and entry_type; payouts takes vendor_id and payout_status. Streamed text/csv (UTF-8 with BOM); cells starting
+        with = + - @ are prefixed with an apostrophe. Dates in Asia/Dhaka time. Payout account details and notes are never exported.'
+      responses:
+        '200':
+          description: CSV file (Content-Disposition attachment)
+          content:
+            text/csv:
+              schema:
+                type: string
+        '404':
+          description: Unknown export type
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: reports.sales.view AND reports.sales.export
+      x-target-permission: reports.sales.export
+      x-tenant-scope: platform (all vendors)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: report.exported (type, period, filters)
+  /api/admin/reports/vendor-sales/products:
+    get:
+      tags:
+      - Admin reports
+      summary: Product-wise vendor sales (8.3)
+      operationId: get_admin_reports_vendor_sales_products
+      description: 'Controller: `VendorSalesReportController@products` (master task 8). period (today|yesterday|this_week|this_month|last_month|this_year|custom; default this_month), from/to (Y-m-d, required for custom; max 366 days). Days are Asia/Dhaka; weeks start on Saturday. Line filters: vendor_id, order_status, category_id (current product category), product_id, commission_rate (snapshot), payment_status. sort (units|gross_sales|net_sales|commission|refunds), per_page. Grouped by the product id and vendor on the line (rows include vendor_id and vendor_name); commission_rate gives the min and max snapshot rate in the period.'
+      responses:
+        '200':
+          description: Success
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: reports.sales.view
+      x-target-permission: reports.sales.view
+      x-tenant-scope: platform (all vendors)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/reports/vendor-sales/rankings:
+    get:
+      tags:
+      - Admin reports
+      summary: Vendor rankings (8.4)
+      operationId: get_admin_reports_vendor_sales_rankings
+      description: 'Controller: `VendorSalesReportController@rankings` (master task 8). period (today|yesterday|this_week|this_month|last_month|this_year|custom; default this_month), from/to (Y-m-d, required for custom; max 366 days). Days are Asia/Dhaka; weeks start on Saturday. metric (orders|net_sales|units|commission|pending_payouts), limit (max 50). pending_payouts = open payout requests now (period ignored).'
+      responses:
+        '200':
+          description: Success
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: reports.sales.view
+      x-target-permission: reports.sales.view
+      x-tenant-scope: platform (all vendors)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/reports/vendor-sales/{vendor}:
+    get:
+      tags:
+      - Admin reports
+      summary: One vendor sales page (8.2)
+      operationId: get_admin_reports_vendor_sales_vendor
+      description: 'Controller: `VendorSalesReportController@show` (master task 8). period (today|yesterday|this_week|this_month|last_month|this_year|custom; default this_month), from/to (Y-m-d, required for custom; max 366 days). Days are Asia/Dhaka; weeks start on Saturday. Vendor profile, current rate, commission history, totals, balances, daily series (period), monthly series (this year), top products, recent orders and the last 10 payouts (no account details).'
+      responses:
+        '200':
+          description: Success
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: reports.sales.view
+      x-target-permission: reports.sales.view
+      x-tenant-scope: platform (all vendors)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
   /api/admin/reviews:
     get:
       tags:
@@ -2791,6 +3023,352 @@ paths:
       x-permission: admin role (AdminMiddleware); no permission check
       x-target-permission: settings.manage
       x-tenant-scope: none yet (single shop); vendor scope added in Phase 2
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/commission:
+    get:
+      tags:
+      - Admin marketplace
+      summary: Default commission rate and history of all rate changes
+      operationId: get_admin_commission
+      description: 'Controller: `CommissionController@show` (ADR-12). Returns `data.default_rate` (from the latest `default` row of `commission_rate_changes`) and `history` (paginator, newest first). Query: scope (default|vendor), vendor_id, per_page (max 100).'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: commission.view
+      x-target-permission: commission.view
+      x-tenant-scope: platform (all vendors)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/commission/vendors:
+    get:
+      tags:
+      - Admin marketplace
+      summary: Every vendor with its own rate, effective rate and last rate change
+      operationId: get_admin_commission_vendors
+      description: 'Controller: `CommissionController@vendors` (master task 5.1). Query: search (name or slug), status (pending|approved|rejected|suspended),
+        rate (default = uses the platform default, own = has its own rate, zero = effective 0%), per_page (max 100). Rows: id, name, slug,
+        status, commission_rate (null = default), effective_commission_rate, uses_default_commission, last_change {by, at, reason}.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: commission.view
+      x-target-permission: commission.view
+      x-tenant-scope: platform (all vendors)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/commission/default:
+    put:
+      tags:
+      - Admin marketplace
+      summary: Change the platform default commission rate
+      operationId: put_admin_commission_default
+      description: 'Controller: `CommissionController@updateDefault` (ADR-12). Applies to new order lines of vendors without their own rate. Existing order_items snapshots are never changed. Appends a `default` row to `commission_rate_changes`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - commission_rate
+              - reason
+              properties:
+                commission_rate:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                  description: 0 is a real rate (no commission), never "not set"
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: commission.manage
+      x-target-permission: commission.manage
+      x-tenant-scope: platform
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: commission.default_changed
+  /api/admin/vendors/{vendor}/commission:
+    put:
+      tags:
+      - Admin marketplace
+      summary: Set or clear one vendor's own commission rate
+      operationId: put_admin_vendors_commission
+      description: 'Controller: `VendorController@updateCommission`. Changes only this vendor; appends a `vendor` row to `commission_rate_changes`. Response vendor payload has commission_rate, effective_commission_rate, uses_default_commission, timezone, currency.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - commission_rate
+              - reason
+              properties:
+                commission_rate:
+                  type:
+                  - number
+                  - 'null'
+                  minimum: 0
+                  maximum: 100
+                  description: The key must be sent. null = use the platform default; 0 = no commission.
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: commission.manage
+      x-target-permission: commission.manage
+      x-tenant-scope: platform; one vendor
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: vendor.commission_changed
+  /api/admin/products/{product}/history:
+    get:
+      tags:
+      - Admin marketplace
+      summary: Product approval and edit history
+      operationId: get_admin_products_history
+      description: 'Controller: `ProductApprovalController@history`. Append-only `product_history`, newest first: status changes (from_status, to_status, reason, actor) and content/variant edits (changes: field => {from, to}). Query: event, per_page (max 100).'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: products.view or products.approve
+      x-target-permission: products.view or products.approve
+      x-tenant-scope: platform (any product)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/admin/products/{product}/suspend:
+    post:
+      tags:
+      - Admin marketplace
+      summary: Suspend a vendor product
+      operationId: post_admin_products_suspend
+      description: 'Controller: `ProductApprovalController@suspend`. From approved, unpublished or pending to suspended: hidden and not purchasable. The vendor cannot resubmit; only reactivate leaves this status. Platform products answer 422.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: products.approve
+      x-target-permission: products.approve
+      x-tenant-scope: platform; vendor products only
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.suspended
+  /api/admin/products/{product}/reactivate:
+    post:
+      tags:
+      - Admin marketplace
+      summary: Reactivate a suspended vendor product
+      operationId: post_admin_products_reactivate
+      description: 'Controller: `ProductApprovalController@reactivate`. Suspended to approved; clears the suspension reason. Any other status answers 422.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 1000
+                  description: Optional note shown to the vendor
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotAdmin'
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: products.approve
+      x-target-permission: products.approve
+      x-tenant-scope: platform; vendor products only
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: product.reactivated
+  /api/vendor/products/{product}/stock-movements:
+    get:
+      tags:
+      - Vendor products
+      summary: Stock movement history of one of the shop's own products
+      operationId: get_vendor_products_stock_movements
+      description: 'Controller: `Vendor\StockMovementController@index` (shared inventory, ADR-12 / master task 11). Newest first. Each row has
+        type, channel and `source` (the spec name: opening_stock, online_sale, online_cancellation, online_return, platform_pos_sale,
+        platform_pos_return, purchase, purchase_return, vendor_adjustment, platform_adjustment, damage), quantity (signed), balance_after,
+        variant (SKU snapshot), reference, reason and time. Query: variant_id, type, source, per_page (max 100). Another shop''s product
+        answers 404.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: Missing the products.manage shop permission
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: vendor membership with products.manage (vendor:active)
+      x-target-permission: inventory.view
+      x-tenant-scope: caller's own shop (membership)
+      x-rate-limit: 'none (spec: 120/min per user)'
+      x-audit-event: —
+  /api/vendor/products/{product}/history:
+    get:
+      tags:
+      - Vendor products
+      summary: History of one of the shop's own products
+      operationId: get_vendor_products_history
+      description: 'Controller: `Vendor\\ProductController@history`. Same rows as the admin endpoint; admin actors are shown as type admin with id and name null. Another shop''s product answers 404.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paginated'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: Missing the products.manage shop permission
+        '419':
+          $ref: '#/components/responses/SessionExpired'
+      security:
+      - sanctumSession: []
+        xsrf: []
+      x-status: implemented
+      x-permission: vendor membership with products.manage (vendor:active)
+      x-target-permission: vendor membership with products.manage (vendor:active)
+      x-tenant-scope: caller's own shop (membership)
       x-rate-limit: 'none (spec: 120/min per user)'
       x-audit-event: —
   /api/admin/user:

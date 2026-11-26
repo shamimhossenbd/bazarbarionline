@@ -317,3 +317,16 @@ The `editor` template no longer changes platform stock.
   - `routes/vendor-purchasing.php` is unregistered.
   
   Existing grants stay in the database but give no access, because the registry fails closed. The platform-side purchasing permissions above are unchanged.
+
+**Purchase module completion (Step A, 2026-11-26).** Migration `2026_11_26_000001_purchase_module_completion`; no new permissions.
+
+| Route (`/api/admin`) | Permission |
+| --- | --- |
+| `GET /purchase-items` (item picker: platform products and variants, stock, average cost) | `purchases.view` |
+| `GET /suppliers/{supplier}/purchases` (supplier purchase history) | `purchases.view` |
+| `GET /purchase-reports/product-history?product_id=&variant_id=` | `purchases.view` |
+| `GET /purchase-reports/purchases?group_by=date\|month\|supplier\|product`, `/stock-received`, `/stock-value` | `purchases.reports.view` |
+| `GET /purchase-reports/export/{purchases\|stock-received\|stock-value\|supplier-balances}` (CSV, audited `report.exported`) | `purchases.reports.view` **and** `purchases.export` |
+| `POST`/`PATCH /suppliers` with `opening_balance`, `opening_balance_date` | `suppliers.manage` (refused with `OPENING_BALANCE_LOCKED` once a payment stands against it) |
+
+Audit events added: `supplier.opening_balance_set`, `purchase.cost.allocated`, `purchase.cost.reversed`. Purchase order status is stored as `partial` and shown as "Partly received".

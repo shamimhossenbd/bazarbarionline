@@ -17,6 +17,7 @@ This is v2 of the BazarBariOnline specification. It replaces v1 (Parts 1–40) w
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v2.11 | 2026-11-26 | **ADR-14 (partnership accounting)** drafted for owner review: platform double-entry ledger in poisha, monthly periods that never reopen, and maker-checker. Partners are now a variable number with **equal** shares, stored as membership periods (no percentages). A month's result is spread evenly over its days; the rounding remainder goes to the lowest id. Leaving partners settle after month close, and a negative balance is collected. No migration before review. Sections 5 and 18 updated. |
 | v2.10 | 2026-11-26 | Admin navigation reorganised into seven sections: Online Sales, POS Sales, Purchase & Inventory, Marketplace, Website, Accounts and Settings & Access. One audit log with a `module` per event, and one permission system with a module map (stored names unchanged). Each section has its own Audit log and Roles & permissions pages. Eight starter roles. Dashboard cards for Online, POS and Vendor sales, plus "Total GMV". The admin Orders page is built (it fixes the old 404). See permissions.md. |
 | v2.9 | 2026-11-26 | Owner addendum A–H adopted as **ADR-13 (first-party retail)**:<br>• The platform sells its own stock through POS and online. Platform-owned stays `vendor_id NULL`, shown as the house seller "BazarBari Official".<br>• One stock ledger with reservations (available = on hand − reserved); weighted average cost; one location, with `location_id` ready.<br>• `sales_channel` on headers, payments and returns.<br>• Platform and marketplace reports are never added together.<br>• No vendor purchasing in this phase.<br>BD-01 and BD-11 amended, BD-15 and BD-16 added; sections 5, 9, 14, 17 and 18 updated; module 09 rewritten. |
 | v2.8 | 2026-11-25 | Master task adopted (ADR-12, supersedes ADR-11): vendors online-only, Platform Admin POS for platform products, no subscriptions, admin-managed per-vendor commission with a DB-stored default. BD-01/11/13/14 updated. |
@@ -161,6 +162,7 @@ Ten decisions fix the shape of the system; each is proposed, to be confirmed aga
 | 11 Retail SaaS | Superseded by ADR-12 (only the shared inventory slice was kept) | — | — |
 | 12 Platform POS, no subscriptions | Vendors sell online only. POS is a Platform Admin module for platform-owned products. No subscription plans. Commission is set per vendor. | Owner master task, 2026-11-25 | Vendor POS; paid plans |
 | 13 First-party retail | Platform stock is `vendor_id NULL` with a house seller identity. One stock ledger with reservations. Weighted average cost. `location_id` ready for more locations. `sales_channel` everywhere. Reports never sum the platform and marketplace sections. No vendor purchasing for now. | Owner addendum A–H, 2026-11-26 | A "house vendor" row in `vendors`: it would make commission, ledger and payouts fail open |
+| 14 Partnership accounting | Platform double-entry ledger in BIGINT poisha, monthly periods never reopened, maker-checker on manual entries. Partners are membership periods with equal shares; a month's result is spread over its days and split among the partners active each day. | Owner, 2026-11-26 (AQ1–AQ10, amendment, AM1–AM6) | Stored percentages or share versions; actual daily profit |
 
 Each ADR gets its own short file in `documentation/adr/NN-title.md` with Context, Decision, Consequences and Date.
 
@@ -729,7 +731,7 @@ Phases are not to scale in time; the gate table below gives each gate's exact co
 ```
 Done   Platform POS (sales, registers, sessions, returns, reports)
 Done   Central purchasing phase 1–2 (suppliers, PO, receiving, WAC, invoices, payments, returns)
-P1     Docs (ADR-13)  ─►  P2 migration 000012  ─►  P3 reservations in InventoryService
+Done   P1 docs (ADR-13), P2 migration 000012, P3 reservations in InventoryService (2026-11-26)
 P4     Movement source names  ─►  P5 vendor purchasing off  ─►  P6 two-section reports
 P7     UI (on hand / reserved / available, house seller)  ─►  P8 browser QA
 Then   Partnership Accounting (ADR-14): AC0 docs ─► AC1 ledger core ─► … ─► AC8 QA
@@ -761,7 +763,7 @@ The register tracks every MVP module; set each Status from Phase 0 evidence, and
 | [Vendor onboarding and lifecycle](modules/06-vendor-lifecycle.md) | 2 | Tenancy, roles | Missing | — |
 | [Catalogue (categories, brands, products, variants, media)](modules/07-catalogue.md) | 2 | Vendors | Partial | Full single-shop catalogue with admin CRUD; no `vendor_id`, ulid, bilingual fields; namespace bug H2 fixed; admin review list still empty (H3 remainder) |
 | [Product approval](modules/08-product-approval.md) | 2 | Catalogue | Missing | Only `is_active` flag |
-| [Inventory and reservations](modules/09-inventory.md) | 2 | Catalogue | Partial | (2026-11-26) Built:<br>• one balance (`inventories` dropped);<br>• `stock_movements` written only through `InventoryService`, with ownership guards;<br>• admin and vendor stock reports;<br>• audited adjustments;<br>• platform stock read-only in product forms.<br>Planned (ADR-13 P2–P3): reservations, available stock, locations. |
+| [Inventory and reservations](modules/09-inventory.md) | 2 | Catalogue | Partial | (2026-11-26) Built:<br>• one balance (`inventories` dropped);<br>• `stock_movements` written only through `InventoryService`, with ownership guards;<br>• admin and vendor stock reports;<br>• audited adjustments;<br>• platform stock read-only in product forms.<br>(2026-11-26, ADR-13 P2–P3) Reservations: checkout reserves, the first status change out of pending converts, cancel releases or restores once (`orders.stock_mode`). POS, cart, adjustments and purchase returns use available = on hand − reserved. One location `MAIN`. MySQL race check in qa-evidence/phase-p3-reservations-2026-11-26/. UI for on hand / reserved / available is P7. |
 | [Customer account, cart, wishlist](modules/10-customer-cart.md) | 2 | Catalogue | Partial | APIs and UI work; cart item IDOR fixed (H1) |
 | [Checkout and order split](modules/11-checkout-order-split.md) | 2 | Cart, inventory | Partial | Single-order checkout API with stock lock (H5 partly fixed: cart price trusted, no idempotency); no split; frontend checkout files empty; admin order list fixed (H4) |
 | [Payments (COD; online after launch)](modules/12-payments.md) | 3 | Checkout | Missing | `payments` table and unrouted controller only |
@@ -772,7 +774,7 @@ The register tracks every MVP module; set each Status from Phase 0 evidence, and
 | Platform POS (ADR-12/13) | First-party | Inventory | Partial | Built 2026-11-25 (`000009`, `000010`): terminal, sales, voids, returns, registers, sessions, settings, POS reports. Browser QA passed on QA. Missing: `sales_channel` on payments and returns, and selling against available stock (ADR-13 P2–P3). |
 | Central purchasing (ADR-13) | First-party | Inventory | Partial | Built 2026-11-25/26 (`000011`): suppliers, purchase orders, receiving with WAC, invoices, payments, returns, stock adjustment page. No supplier-finance UI. The vendor side is to be switched off (BD-16, P5). |
 | First-party sales reports (ADR-13) | First-party | POS, checkout | Missing | Two sections (14.2a) planned in P6. |
-| Partnership accounting (ADR-14) | First-party | All money modules | Missing | Plan approved 2026-11-26. Starts after ADR-13 P3, from AC0. |
+| [Partnership accounting (ADR-14)](adr/14-partnership-accounting.md) | First-party | All money modules | Missing | Plan approved 2026-11-26; variable partners with equal shares (amendment, AM1–AM6). ADR-14 approved 2026-11-26 (owner changes C1–C3). Code starts after ADR-13 P3. |
 
 Status values come from the [Phase 0 audit](audit/phase-0.md) of 19 Nov 2026, with notes updated from its §7 re-check. The Inventory row and the first-party rows were updated on 2026-11-26 from code evidence. The other rows have not been re-checked since Phase 0, and many are out of date (for example tenancy, roles, approval and finance were built from 20 to 25 Nov). A full refresh of the register is a separate task. No module is Done.
 

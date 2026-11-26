@@ -139,7 +139,7 @@ Platform POS sales and platform online lines create no vendor earnings and no co
 - The code and the nullable `vendor_id` columns on the purchasing tables stay, so the module can return later. This replaces decision D1 of 2026-11-25 for now.
 - Vendors keep changing their own stock with audited adjustments (channel `vendor`).
 
-## Schema for migration `2026_11_26_000012_first_party_retail` (for owner approval; not written yet)
+## Schema for migration `2026_11_26_000012_first_party_retail` (built 2026-11-26)
 
 | Table | Change |
 | --- | --- |
@@ -172,8 +172,8 @@ Platform POS sales and platform online lines create no vendor earnings and no co
 The addendum plan's phases, each reported to the owner before the next starts:
 
 - **P1:** documents (this ADR).
-- **P2:** migration `000012`.
-- **P3:** reservations in `InventoryService`, checkout, conversion and cancellation; POS, adjustments and purchase returns use available stock; tests and a MySQL race test.
+- **P2:** migration `000012`. **Done 2026-11-26**: local api-backend after a verified backup; proven up/down on a throwaway DB; QA waits for the owner.
+- **P3 (done 2026-11-26):** reservations in `InventoryService`, checkout, conversion and cancellation; POS, adjustments and purchase returns use available stock; tests and a MySQL race test.
 - **P4:** source names.
 - **P5:** vendor purchasing switched off.
 - **P6:** reports split into two sections.

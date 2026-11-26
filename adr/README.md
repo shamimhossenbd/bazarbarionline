@@ -17,3 +17,4 @@ One file per decision (spec section 5). To change a decision, add a new ADR that
 | [11](11-retail-saas-on-vendor-tenant.md) | Retail SaaS (POS, inventory, accounts) on the Vendor tenant | **Superseded** by ADR-12 (2026-11-25); slice 1a inventory kept |
 | [12](12-platform-pos-no-subscriptions.md) | Marketplace-only vendors, Platform Admin POS, no subscriptions | **Accepted** 2026-11-25; POS scope and platform stock extended by ADR-13 |
 | [13](13-first-party-retail.md) | First-party retail: platform-owned stock through POS and online, reservations, WAC, locations, sales channel | **Accepted** 2026-11-26 |
+| [14](14-partnership-accounting.md) | Partnership accounting: platform ledger, variable partners with equal shares | **Accepted** 2026-11-26 (with owner changes C1–C3) |

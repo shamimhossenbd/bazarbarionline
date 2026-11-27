@@ -108,7 +108,14 @@ Each decision notes where it comes from: "Brief" is the owner's original module 
 
   **Added by AQ8:** `accounts.manage` (chart of accounts, categories, account mappings, transfers, capital and withdrawal entries) and `partners.manage` (partner membership). All of them belong to the `accounts` module in `PermissionModules`.
 - **Expenses (Brief):** anyone with `expenses.create` enters one, and a **different** user with `expenses.approve` approves it. Only approved expenses post and count in profit. `approved_by ≠ created_by` is enforced in the code and by a DB CHECK, for super admins too.
-- **Maker-checker (AQ8):** manual journals, capital contributions, withdrawals, transfers and **partner membership changes** (8.6) are `accounting_requests`. Each one posts only when a **different** user holding the same permission approves it.
+- **Maker-checker (AQ8):** manual journals, capital contributions, withdrawals, transfers and **partner membership changes** (8.6) are `accounting_requests`. Each one posts only when a **different** user approves it.
+- **Owner change 4 (2026-11-27): making and approving are separate permissions.**
+  - `accounts.requests.create` makes manual journal, reversal, transfer, capital and withdrawal requests. `accounts.manage` makes the opening entry (and keeps the chart and mappings). `partners.manage` makes partner joins and leaves.
+  - `accounts.requests.approve` approves or rejects every request type, including partner joins and leaves and the opening entry. The approver is never the maker, super admins included.
+  - `profit.distribute` now means *propose*; the new `profit.approve` approves a distribution.
+  - Roles (editable): **Accountant** = accounts.view, expenses.create, accounts.requests.create. **Partner** = partners.view_own, accounts.view, expenses.approve, accounts.requests.approve, profit.approve. super_admin and administrator hold everything, except that `partners.manage` and `accounts.close_period` are **super admin only**.
+  - Because only super admins hold `partners.manage`, a join or leave is approved with `accounts.requests.approve` rather than `partners.manage` (this replaces the approver rule in 8.3 and test A1).
+  - Partners hold `accounts.view`, so they can read every account in the ledger, including other partners' capital. The statement endpoint still limits a `partners.view_own`-only user to their own statement.
 - **Card payments (AQ10)** go to 1040 Card settlement clearing. The settlement moves the net amount to Bank and the fee to bank/MFS charges.
 - Every create, approve, reject, reverse, close, distribute and mapping change is an audit event in the `accounts` module.
 
@@ -127,7 +134,7 @@ Each decision notes where it comes from: "Brief" is the owner's original module 
   - **Approvers (C1, owner change 1):** the number of partner approvals required = min(configured number, default 2; active partners − 1). The **proposer is never an approver**.
     - 3 or more active partners: 2 partner approvals (with the default setting).
     - 2 active partners: 1 approval, from the partner who did not propose.
-    - 1 active partner: no partner approval is possible. One approval comes instead from a user with `profit.distribute` who is **not** that partner and not the proposer.
+    - 1 active partner: no partner approval is possible. One approval comes instead from a user with `profit.approve` (owner change 4) who is **not** that partner and not the proposer.
     - "Active" is counted on the day the distribution is approved. The number is fixed when the distribution is proposed and checked again when it is posted.
   - Shares are **credited to capital**. Cash taken out later is **drawings**.
 - **Rounding:** each line is rounded to 0.01, and the remainder goes to the **lowest partner id**, which replaces largest-remainder. The lines add up exactly.
@@ -169,7 +176,7 @@ The 5 current partners get memberships starting on the go-live date.
 | `partner.leave` | membership, left_on | sets left_on (no journal entry) |
 | `partner.settle` | membership, paid-from or received-into account | entries J36–J38, closes both accounts, sets settled_at |
 
-The maker needs `partners.manage`. The approver needs `partners.manage` and must be a **different user**. Every request, approval and rejection is audited with the before and after state.
+The maker needs `partners.manage`. The approver needs `accounts.requests.approve` (owner change 4) and must be a **different user**. Every request, approval and rejection is audited with the before and after state.
 
 #### 8.4 Distribution arithmetic
 

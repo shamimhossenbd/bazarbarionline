@@ -329,8 +329,8 @@ Every migration is first proven up and down on the throwaway DB `bb_migration_te
 Phases:
 - AC0: docs.
 - AC1: ledger core.
-- AC2: partners and the opening entry.
-- AC3: expenses.
+- AC2: partners and the opening entry. **Built 2026-11-27** (000014). Settlement (`partner.settle`, J36-J38) moves to AC7 because AM3 needs closed and distributed months.
+- AC3: expenses. **Built 2026-11-27** (000015): categories = accounts 5101-5111, new ones from 5112 (accounts.manage); enter with expenses.create, a different user approves with expenses.approve and J25 posts on the expense date; makers see only their own expenses. No receipt upload yet (planned with the UI, AC8).
 - AC4: inventory value.
 - AC5: automatic posting.
 - AC6: reports.

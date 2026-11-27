@@ -91,7 +91,7 @@ Each decision notes where it comes from: "Brief" is the owner's original module 
 **Go-live checklist (owner, 2026-11-27).** The real opening entry is made only when all of these are done:
 
 1. **Physical stock count.** Count every platform-owned item and record each difference as an audited stock adjustment (Inventory → Stock adjustment, reason required). Only then does the 1200 Inventory pre-fill (stock on hand × weighted average cost) match the real stock.
-2. **Costs.** Every platform item with stock has a cost. The pre-fill marks 1200 "not available" while any item lacks one.
+2. **Costs.** Every platform item with stock has a cost. The pre-fill marks 1200 "not available" while any item lacks one. Fix them on **Inventory → Items without cost** (`/admin/inventory/without-cost`; list with `inventory.view`, set the real unit cost with `inventory.adjust` and a reason, which values the stock through an audited revaluation).
 3. **Payables.** Supplier invoices, payments and returns, and the vendor ledger, are up to date, so the 2010 and 2020 pre-fills are right.
 4. **COD with the courier.** The partners take the 1100 figure from the latest Steadfast statement (the system cannot work it out until AC5).
 5. **Cash, bank and MFS.** The partners count the cash and take the bank and MFS balances on the go-live date.

@@ -80,6 +80,12 @@ Each decision notes where it comes from: "Brief" is the owner's original module 
 - One **opening-balances entry** on a chosen go-live date. Past events are not replayed.
 - The partners supply cash, bank and MFS balances and each partner's capital. The system pre-fills COD receivable, inventory, inventory awaiting delivery, vendor payables and supplier payables, and the partners confirm those figures.
 - 3950 Opening balance equity must come out at exactly 0, or the entry is refused.
+- **Confirmation by every listed partner (owner, 2026-11-27).** The opening entry is not approved by one checker:
+  - each partner listed in it confirms **their own line** (their opening capital, re-typed as the amount) from their own account;
+  - it posts only when **all** listed partners have confirmed, at the last confirmation, which re-checks the pre-fill and the empty ledger;
+  - the maker is never a confirmer, and a listed partner cannot be the maker;
+  - for a listed partner **without an account**, a user with `accounts.manage` (not the maker) may confirm on their behalf **only with a signed consent document attached** (PDF, JPG or PNG, up to 5 MB, kept on the private disk with its name, size and SHA-256; the confirmation and every download are audited);
+  - one partner **declining** returns the request to the maker with the partner's reason (status rejected); the maker submits a corrected request, which needs fresh confirmations.
 - Events dated before go-live never post. Later events that settle older documents post against the opening balances.
 
 **Go-live checklist (owner, 2026-11-27).** The real opening entry is made only when all of these are done:
@@ -320,9 +326,10 @@ The plan approved on 2026-11-26 placed the expense categories at "5100–5180". 
 | 000013 | Ledger core: `accounts`, `account_mappings`, `accounting_settings`, `fiscal_periods`, `journal_entries`, `journal_lines`, `accounting_requests`, `period_close_notes`; the chart of accounts seed; permissions | — |
 | 000014 | Partners: `partners` and `partner_memberships`. It replaces the former `partner_share_versions` and `partner_share_lines`. | 000013 |
 | 000015 | Expenses: `expense_categories` (11 seeded) and `expenses` with the CHECK | 000013 |
-| 000016 | Inventory value: stock value columns and the backfill | 000011 |
-| 000017 | Money sources: coupon `funded_by`, `settlements` (+ items, with the per-vendor courier-charge split), `order_refunds` (+ items), account ids on payouts and purchase payments, and the `courier_charge` type in `vendor_ledger_entries` | 000013 (and 000012 for online events) |
-| 000018 | Profit distributions: `profit_distributions`, `profit_distribution_lines` (membership, partner, month, weight numerator, amount), `profit_distribution_approvals` | 000014 |
+| 000016 | AC2 follow-ups (owner, 2026-11-27): `accounting_request_confirmations` for the opening entry, and the Accountant / Partner ledger grants for databases where 000002 ran after 000013/000014 (000002 itself is never edited) | 000014 |
+| 000017 | Inventory value: stock value columns and the backfill (planned as 000016 before 2026-11-27) | 000011 |
+| 000018 | Money sources: coupon `funded_by`, `settlements` (+ items, with the per-vendor courier-charge split), `order_refunds` (+ items), account ids on payouts and purchase payments, and the `courier_charge` type in `vendor_ledger_entries` | 000013 (and 000012 for online events) |
+| 000019 | Profit distributions: `profit_distributions`, `profit_distribution_lines` (membership, partner, month, weight numerator, amount), `profit_distribution_approvals` | 000014 |
 
 Every migration is first proven up and down on the throwaway DB `bb_migration_test`. It then runs on `api-backend` and `bazarbari_cart_qa` after verified backups. **None runs before the owner approves this ADR**, and none runs on production.
 

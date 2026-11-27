@@ -82,6 +82,17 @@ Each decision notes where it comes from: "Brief" is the owner's original module 
 - 3950 Opening balance equity must come out at exactly 0, or the entry is refused.
 - Events dated before go-live never post. Later events that settle older documents post against the opening balances.
 
+**Go-live checklist (owner, 2026-11-27).** The real opening entry is made only when all of these are done:
+
+1. **Physical stock count.** Count every platform-owned item and record each difference as an audited stock adjustment (Inventory → Stock adjustment, reason required). Only then does the 1200 Inventory pre-fill (stock on hand × weighted average cost) match the real stock.
+2. **Costs.** Every platform item with stock has a cost. The pre-fill marks 1200 "not available" while any item lacks one.
+3. **Payables.** Supplier invoices, payments and returns, and the vendor ledger, are up to date, so the 2010 and 2020 pre-fills are right.
+4. **COD with the courier.** The partners take the 1100 figure from the latest Steadfast statement (the system cannot work it out until AC5).
+5. **Cash, bank and MFS.** The partners count the cash and take the bank and MFS balances on the go-live date.
+6. **Capital.** The partners agree each partner's opening capital, so that 3950 comes out at exactly 0.
+7. **Timing.** The pre-fill shows current values, so count, submit and approve on (or as close as possible to) the go-live date, with no stock movement between the count and the approval. The approval re-checks the pre-fill and refuses a figure that has changed.
+8. **Test data.** QA test records are never part of the real opening entry; the real entry is made only on the production database.
+
 ### 5. Inventory value (AQ6, AQ7)
 
 - **AQ6:** invoice shipping is added to inventory cost. Purchase tax is added to cost by default. The setting `purchase_tax_treatment` can switch it to input VAT (1300), and a change applies only to invoices posted after it.
@@ -116,6 +127,7 @@ Each decision notes where it comes from: "Brief" is the owner's original module 
   - Roles (editable): **Accountant** = accounts.view, expenses.create, accounts.requests.create. **Partner** = partners.view_own, accounts.view, expenses.approve, accounts.requests.approve, profit.approve. super_admin and administrator hold everything, except that `partners.manage` and `accounts.close_period` are **super admin only**.
   - Because only super admins hold `partners.manage`, a join or leave is approved with `accounts.requests.approve` rather than `partners.manage` (this replaces the approver rule in 8.3 and test A1).
   - Partners hold `accounts.view`, so they can read every account in the ledger, including other partners' capital. The statement endpoint still limits a `partners.view_own`-only user to their own statement.
+  - **Own partnership (owner, 2026-11-27):** nobody approves a request about their own membership, capital or drawings (join, leave, capital contribution, withdrawal, settlement), whatever permissions they hold. "Own" means the partner linked to the approver's account (`partners.user_id`). Code `OWN_MEMBERSHIP`.
 - **Card payments (AQ10)** go to 1040 Card settlement clearing. The settlement moves the net amount to Bank and the fee to bank/MFS charges.
 - Every create, approve, reject, reverse, close, distribute and mapping change is an audit event in the `accounts` module.
 

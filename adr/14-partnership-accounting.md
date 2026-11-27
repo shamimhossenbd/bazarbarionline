@@ -338,7 +338,7 @@ Phases:
 - AC1: ledger core.
 - AC2: partners and the opening entry. **Built 2026-11-27** (000014). Settlement (`partner.settle`, J36-J38) moves to AC7 because AM3 needs closed and distributed months.
 - AC3: expenses. **Built 2026-11-27** (000015): categories = accounts 5101-5111, new ones from 5112 (accounts.manage); enter with expenses.create, a different user approves with expenses.approve and J25 posts on the expense date; makers see only their own expenses. No receipt upload yet (planned with the UI, AC8).
-- AC4: inventory value.
+- AC4: inventory value. **Built 2026-11-27** (000017): `stock_value_poisha` on products and variants, signed `value_poisha` on movements, backfill = one quantity-0 `revaluation` movement per item (stock × average cost). For every item the movement values sum to its stock value. Rounding: stock out takes value × quantity ÷ on hand rounded half up to the poisha, and the last unit takes what is left, so no poisha is lost. A restored online order comes back at the value it left with; a POS return at its sale-line cost. An item that never had a cost keeps a NULL average while its value is 0, and the 1200 pre-fill stays "not available" until it gets one. The 1200 reconciliation source is the platform stock value as of the day. Unit costs keep 4 decimals in movements and admin screens. Postings to 1200/1210/5010/5020/5030 come with AC5.
 - AC5: automatic posting.
 - AC6: reports.
 - AC7: profit distribution.

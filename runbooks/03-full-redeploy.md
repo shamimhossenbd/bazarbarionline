@@ -43,10 +43,14 @@ composer install --no-dev --optimize-autoloader
    mv laravel-ecommerce-new laravel-ecommerce
    ```
 5. Point the API domain's document root (cPanel → Domains) at `/home/<user>/laravel-ecommerce/public`. Nothing else is web-exposed.
-6. Make sure the cron job exists (cPanel → Cron Jobs, every minute):
+6. Make sure the cron job exists (cPanel → Cron Jobs, **every minute**, `* * * * *`):
    ```
-   <php> /home/<user>/laravel-ecommerce/artisan schedule:run >> /dev/null 2>&1
+   cd /home/<user>/laravel-ecommerce && <php> artisan schedule:run >> /dev/null 2>&1
    ```
+   - `<php>` is the PHP 8.4 CLI binary on the host, for example `/usr/local/bin/ea-php84` or `/opt/cpanel/ea-php84/root/usr/bin/php`. **Confirm the exact path with the host** (cPanel → MultiPHP Manager, or `which php` / `ls /opt/cpanel/` in Terminal) and run `<php> -v` once: it must print 8.4.
+   - Do **not** add a separate `queue:work` cron. The scheduler starts the worker itself each minute: `queue:work --stop-when-empty --max-time=50` (routes/console.php). It drains the queue and exits within 50 s, so workers never pile up against CloudLinux limits (runbook 06).
+   - The scheduler also runs the Steadfast status check every 30 minutes (`steadfast:poll-statuses`) and writes a heartbeat each minute.
+   - **Check:** within 2 minutes the admin dashboard must **not** show "Background jobs are not running". That warning appears when the heartbeat is older than 5 minutes (`GET /api/admin/system/scheduler`).
 7. `<php> artisan queue:restart`.
 
 ## 3. Frontend (Next.js)

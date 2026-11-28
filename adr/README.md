@@ -18,3 +18,4 @@ One file per decision (spec section 5). To change a decision, add a new ADR that
 | [12](12-platform-pos-no-subscriptions.md) | Marketplace-only vendors, Platform Admin POS, no subscriptions | **Accepted** 2026-11-25; POS scope and platform stock extended by ADR-13 |
 | [13](13-first-party-retail.md) | First-party retail: platform-owned stock through POS and online, reservations, WAC, locations, sales channel | **Accepted** 2026-11-26 |
 | [14](14-partnership-accounting.md) | Partnership accounting: platform ledger, variable partners with equal shares | **Accepted** 2026-11-26 (with owner changes C1–C3) |
+| [15](15-marketing-analytics.md) | Marketing & Analytics: GA4/GTM, Meta Pixel + Conversions API, Marketing API reports from our own tables | **Accepted** 2026-11-28 (answers MQ1–MQ6); built after AC5 part 2 |

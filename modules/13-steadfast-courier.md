@@ -88,3 +88,19 @@ Built: `shipment.booked`, `shipment.booking_failed`, `shipment.status_changed`, 
 4. If cPanel sits behind a proxy that terminates TLS, configure trusted proxies so `RequireHttps` sees HTTPS.
 
 Done only when the Definition of Done in spec section 16.4 is met.
+
+## Admin panel, auto-booking and status poll (built 2026-11-28)
+
+Owner brief 2026-11-27 and answers 2026-11-28. Code: api `59651fc` and web `ccd31f5`, on branch `feat/accounting-ac2` (also `feat/steadfast-admin-settings`). Migration `2026_11_28_000018_steadfast_admin_settings`. Because of it, AC5 part 2 is now `000019`.
+
+| Part | Rule |
+| --- | --- |
+| Keys | Saved under **Settings & Access → Courier (Steadfast)**, encrypted with APP_KEY in `settings`. No API ever returns them; the UI shows only the last 4 characters. `.env` keys are the fallback for local and CI. New keys save only after a successful **Test connection** (Check Balance) with exactly those keys, or with an override and a reason. Permission `courier.settings.manage` (super admin only). Audited as `courier.settings_updated` (field names only). |
+| Switches | `enabled` (off = no Steadfast call at all) and `auto_book` (default off). No sandbox/live switch, because none is documented. |
+| Auto-book | An admin confirming an order (only orders with no vendor lines) or a vendor accepting their lines queues `AutoBookSteadfastShipment`. It is idempotent: invoice = order number, unique, and an existing shipment is reused. 3 retries with 1/5/15-minute backoff. A failure keeps the order confirmed and sets the shipment to `failed` with the error; this shows a red badge, Retry, and the **Courier issues** page. A bad phone or address is not retried. |
+| Manual | **Book with Steadfast** on the order page; **Book selected** (Create Bulk Order, max 500). The phone must be `01XXXXXXXXX` and an address is required. |
+| Status | `steadfast:poll-statuses` runs every 30 minutes for active shipments (the documented path). The secured webhook stays. Both go through `SteadfastWebhookProcessor`: the same status is never applied twice, and an older status never moves a shipment backwards. |
+| Courier history | Fraud Check runs **only on click** ("Check courier history") on COD orders, from the admin (`courier.fraud_check`) or the vendor. It is cached 24 h per phone (HMAC key) and every check is audited (`courier.fraud_checked`, no phone). The storefront `/privacy` page says the phone is shared with the courier for delivery and fraud prevention. |
+| Other | Send Pickup Request (saved address_id and police station); Steadfast balance card on the Accounts dashboard; our own call limit (`STEADFAST_RATE_PER_MINUTE`, default 60); 15 s timeout. |
+
+Before going live: the cPanel cron must run `php artisan schedule:run` every minute and a queue worker (`php artisan queue:work --stop-when-empty`), or the poll and auto-booking retries never run.
